@@ -2,3 +2,4 @@
 
 
 Brendan: Easy Adaptation: A very easy but VERY effective feature representation transfer algorithm included from the base paper.
+David: Transferring Knowledge of Instances
