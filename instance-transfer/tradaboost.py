@@ -56,13 +56,13 @@ def run_boost(train, test, iterations):
 
         # Extract weights and outputs
         weights = [ex.weight for ex in train]
-        outputs = [int(classifiers[-1].classify(ex)[0] != ex.label) for ex in train]
+        outputs = [classifiers[-1].classify(ex)[0] != ex.label for ex in train]
 
         # Calculate classifier error
         error = weight_error(weights, outputs)
         classifier_weights.append(classifier_weight(error))
 
-        if error < 10e-20 or error >= 0.5:
+        if error < 10e-10 or error >= 0.5:
             break
 
         # Update the weights
@@ -117,7 +117,9 @@ def classifier_weight(error):
     """
     find the weight of the classifier itself
     """
-    return 0.5 * math.log((1 - error) / error)
+    EPSILON = 1E-6
+
+    return 0.5 * math.log((1 - error + EPSILON) / (error + EPSILON))
 
 
 def update_weights(weights, output, alpha):
@@ -125,14 +127,16 @@ def update_weights(weights, output, alpha):
     updated the weights of the data
     """
     updated_weights = []
-    norm = 1 / sum(weights)
     for current_itr in range(len(weights)):
         converted_output = 1 if output[current_itr] else -1
 
         updated_weights.append(
-            norm * weights[current_itr] * math.exp(-alpha * converted_output)
+            weights[current_itr] * math.exp(-alpha * converted_output)
         )
-    return updated_weights
+
+    norm = 1 / sum(updated_weights)
+
+    return [w * norm for w in updated_weights]
 
 
 if __name__ == "__main__":

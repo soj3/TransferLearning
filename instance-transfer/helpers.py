@@ -36,8 +36,15 @@ def calculate_label_occurrences(examples):
     Finds the occurrences of positive examples for a given attribute or value
     attr_idx: this can be specified if a specific attribute should be counted
     """
-    positive_examples = sum([1 for example in examples if example.label == 1])
-    return [positive_examples, len(examples) - positive_examples]
+    positive_examples = sum(
+        [example.weight for example in examples if example.label == 1]
+    )
+
+    negative_examples = sum(
+        [example.weight for example in examples if example.label == 0]
+    )
+
+    return [positive_examples, negative_examples]
 
 
 def class_split_continuous(examples: List[Example], ftr: int):
@@ -74,14 +81,14 @@ def calculate_continuous_occurrences(
     total_occs = [[0, 0], [0, 0]]
 
     for example in examples[1:]:
-        total_occs[1][int(example.label != 1)] += 1
-    total_occs[0][int(not examples[0].label)] += 1
+        total_occs[1][int(example.label != 1)] += example.weight
+    total_occs[0][int(not examples[0].label)] += examples[0].weight
 
     n_split = 0
     for example in examples[1:]:
         if example.features[ftr] <= splits[n_split]:
-            total_occs[0][int(not example.label)] += 1
-            total_occs[1][int(not example.label)] -= 1
+            total_occs[0][int(not example.label)] += example.weight
+            total_occs[1][int(not example.label)] -= example.weight
         else:
             split_occs[splits[n_split]] = total_occs
             n_split += 1
