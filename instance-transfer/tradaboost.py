@@ -15,7 +15,7 @@ def boost():
     """
 
     print("Collecting Data")
-    data = collect_review_data("kitchen", 10)
+    data = collect_review_data("kitchen", 100)
     print("Finished Collecting Data")
 
     iterations = 100
@@ -56,8 +56,7 @@ def run_boost(train, test, iterations):
 
         # Extract weights and outputs
         weights = [ex.weight for ex in train]
-        print(classifiers[-1].classify(train[0]))
-        outputs = [int(int(classifiers[-1].classify(ex)) != ex.label) for ex in train]
+        outputs = [int(classifiers[-1].classify(ex)[0] != ex.label) for ex in train]
 
         # Calculate classifier error
         error = weight_error(weights, outputs)
@@ -100,7 +99,7 @@ def run_boost(train, test, iterations):
 
         # Calculate outputs and matrix
         outputs.append((vote, total_conf))
-        is_correct = "t" if ex[-1] == output else "f"
+        is_correct = "t" if ex.label == output else "f"
         is_positive = "p" if output else "n"
         matrix[is_correct + is_positive] += 1
 

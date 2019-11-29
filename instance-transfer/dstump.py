@@ -10,6 +10,7 @@ class DStump(object):
 
     def fit(self, data: List[Example]):
         self.stump = ID3(data)
+        self.stump.find_confidences(data)
 
     def classify(self, example: Example):
         return self.stump.evaluate_example(example)

@@ -20,3 +20,6 @@ class SentimentExample(Example):
                 self.features.append(self.words[v])
             else:
                 self.features.append(0)
+
+    def __str__(self):
+        return "{}, {}".format(self.features, self.label)

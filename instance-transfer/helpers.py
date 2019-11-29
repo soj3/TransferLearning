@@ -40,16 +40,52 @@ def calculate_label_occurrences(examples):
     return [positive_examples, len(examples) - positive_examples]
 
 
-def calculate_nominal_occurrences(examples: List[Example], attr_idx: int):
+def class_split_continuous(examples: List[Example], ftr: int):
     """
-    Finds the occurrences of each value of a nominal attribute
+    return values of which to split on for a continuous attribute
     """
+    split_values = []
+    i = 1
+    while i < len(examples):
+        if examples[i].label != examples[i - 1].label:
+            # Iterate while vals are same
+            while (
+                i < len(examples) - 1
+                and examples[i].features[ftr] == examples[i - 1].features[ftr]
+            ):
+                i += 1
 
-    num_features = len(examples)
+            # Append split
+            split_values.append(
+                (examples[i].features[ftr] + examples[i - 1].features[ftr]) / 2.0
+            )
 
-    value_occs = {feature: [0, 0] for feature in range(num_features)}
+        i += 1
+    return split_values
 
-    for example in examples:
-        value_occs[example.features[attr_idx]][int(example.label != 1)] += 1
 
-    return [value_occ for key, value_occ in value_occs.items()]
+def calculate_continuous_occurrences(
+    splits: List[float], examples: List[Example], ftr: int
+):
+    """
+    Finds the occurrences of each value of a continuous attribute
+    """
+    split_occs = {}
+    total_occs = [[0, 0], [0, 0]]
+
+    for example in examples[1:]:
+        total_occs[1][int(example.label != 1)] += 1
+    total_occs[0][int(not examples[0].label)] += 1
+
+    n_split = 0
+    for example in examples[1:]:
+        if example.features[ftr] <= splits[n_split]:
+            total_occs[0][int(not example.label)] += 1
+            total_occs[1][int(not example.label)] -= 1
+        else:
+            split_occs[splits[n_split]] = total_occs
+            n_split += 1
+
+        if n_split == len(splits):
+            break
+    return split_occs
