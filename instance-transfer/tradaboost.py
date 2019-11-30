@@ -15,7 +15,7 @@ def boost():
     """
 
     print("Collecting Data")
-    data = collect_review_data("kitchen", 500)
+    data = collect_review_data("kitchen", 200)
     print("Finished Collecting Data")
 
     iterations = 100
@@ -25,13 +25,14 @@ def boost():
 
     data_folds = n_fold_cross_validation(data)
 
-    for idx, train, test in enumerate(data_folds):
+    for idx, (train, test) in enumerate(data_folds):
         print("Running Fold {}".format(idx))
 
         output, matrix = run_boost(train, test, iterations)
         confused_matrix_bois.append(matrix)
         confused_output_bois += output
 
+    print(confused_matrix_bois)
     calculate_stats(arr_of_confusion=confused_matrix_bois)
     calculate_aroc(arr_of_confidence=confused_output_bois)
 
@@ -60,7 +61,6 @@ def run_boost(train, test, iterations):
 
         # Calculate classifier error
         error = weight_error(weights, outputs)
-        print("Error: {}".format(error))
         classifier_weights.append(classifier_weight(error))
 
         if error < 10e-30 or error >= 0.5:
