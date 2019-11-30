@@ -32,7 +32,6 @@ def boost():
         confused_matrix_bois.append(matrix)
         confused_output_bois += output
 
-    print(confused_matrix_bois)
     calculate_stats(arr_of_confusion=confused_matrix_bois)
     calculate_aroc(arr_of_confidence=confused_output_bois)
 
