@@ -22,4 +22,7 @@ class SentimentExample(Example):
                 self.features.append(0)
 
     def __str__(self):
-        return "{}, {}".format(self.features, self.label)
+        return "{}, {}\n".format(self.features, self.label)
+
+    def __repr__(self):
+        return self.__str__()

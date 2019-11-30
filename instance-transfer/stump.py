@@ -1,6 +1,6 @@
 import sys
+from typing import List
 from example import Example
-from typing import Any, List
 
 
 class Stump(object):
@@ -8,41 +8,34 @@ class Stump(object):
     instance of a decision stump
     """
 
-    def __init__(self, attribute: Any = None):
+    def __init__(self, attribute: int = None):
         self.attribute = attribute
+        self.values = {}
 
-        self.split_val = None
-
-        self.less_than = None
-        self.less_than_vals = [0, 0]
-
-        self.greater_than = None
-        self.greater_than_vals = [0, 0]
-
-    def __repr__(self):
-        return "<Attribute: {}, Split value: {}>".format(self.attribute, self.split_val)
+        self.confidences = {}
 
     def evaluate_example(self, example: Example):
         value = example.features[self.attribute]
+        label = example.label
 
-        if value < self.split_val:
-            label = self.less_than
-            occs = self.less_than_vals
-        else:
-            label = self.greater_than
-            occs = self.greater_than_vals
+        if value not in self.values:
+            value = min(self.values.keys(), key=lambda x: abs(x - value))
 
-        conf = occs[example.label] / sum(occs)
+        occs = self.confidences[value]
+        conf = occs[label] / sum(occs)
 
-        return label, conf
+        return self.values[value], conf
 
-    def find_confidences(self, data: List[Example]):
-        for ex in data:
+    def find_confidences(self, examples: List[Example]):
+        self.confidences = {key: [0, 0] for key in self.values.keys()}
+
+        for ex in examples:
             value = ex.features[self.attribute]
             label = ex.label
 
-            if value < self.split_val:
-                self.less_than_vals[label] += 1
-            else:
-                self.greater_than_vals[label] += 1
+            self.confidences[value][label] += 1
 
+    def __repr__(self):
+        return "<Attribute: {}, Values Size: {}>".format(
+            self.attribute, len(self.values)
+        )
