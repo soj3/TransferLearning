@@ -16,7 +16,7 @@ def collect_review_data(domain, num_features=3000):
     for review in unlabeled_reviews:
         review.create_features(vocab[:num_features])
 
-    return labeled_reviews, unlabeled_reviews
+    return labeled_reviews, unlabeled_reviews, vocab
 
 
 def read_reviews(domain):
