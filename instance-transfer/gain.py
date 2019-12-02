@@ -15,8 +15,7 @@ def info_gain(label_occ, cond_occ_list):
     total_examples = sum(label_occ)
 
     cond_entropy_list = [
-        (sum(cond_occ) / total_examples) * shannon_entropy(cond_occ)
-        for cond_occ in cond_occ_list
+        sum(cond_occ) * shannon_entropy(cond_occ) for cond_occ in cond_occ_list
     ]
     return label_entropy - sum(cond_entropy_list)
 
