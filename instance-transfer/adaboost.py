@@ -7,6 +7,7 @@ from example import SentimentExample
 from helpers import n_fold_cross_validation
 from dstump import DStump
 from stats import calculate_aroc, calculate_stats
+import matplotlib.pyplot as plt
 
 
 def boost():
@@ -15,18 +16,23 @@ def boost():
     """
 
     print("Collecting Data")
-    data = collect_review_data("kitchen", 200)
+    b_data, d_data, e_data, k_data = collect_review_data(100)
     print("Finished Collecting Data")
 
-    iterations = 100
+    iterations = 20
 
     confused_matrix_bois = []
     confused_output_bois = []
 
-    data_folds = n_fold_cross_validation(data)
+    # b_data_folds = n_fold_cross_validation(b_data)
+    d_data_folds = n_fold_cross_validation(d_data)
+    # e_data_folds = n_fold_cross_validation(e_data)
+    k_data_folds = n_fold_cross_validation(k_data)
 
-    for idx, (train, test) in enumerate(data_folds):
-        print("Running Fold {}".format(idx))
+    k_data_folds[:, 1] = d_data_folds[:, 1]
+
+    for idx, (train, test) in enumerate(k_data_folds):
+        print("Running Fold {}".format(idx + 1))
 
         output, matrix = run_boost(train, test, iterations)
         confused_matrix_bois.append(matrix)
@@ -48,7 +54,8 @@ def run_boost(train, test, iterations):
 
     # run for the input number of iterations
     while current_itr < iterations:
-        print("Boost Iteration: {}".format(current_itr))
+        print()
+        print("Boost Iteration: {}".format(current_itr + 1))
         classifiers.append(DStump())
 
         # randomly sample the training set with replacement
@@ -62,7 +69,7 @@ def run_boost(train, test, iterations):
         error = weight_error(weights, outputs)
         classifier_weights.append(classifier_weight(error))
 
-        if error < 10e-30 or error >= 0.5:
+        if error >= 0.5:
             break
 
         # Update the weights
@@ -117,7 +124,7 @@ def classifier_weight(error):
     """
     find the weight of the classifier itself
     """
-    EPSILON = 1e-6
+    EPSILON = 1e-10
 
     return 0.5 * math.log((1 - error + EPSILON) / (error + EPSILON))
 
@@ -126,17 +133,11 @@ def update_weights(weights, output, alpha):
     """
     updated the weights of the data
     """
-    updated_weights = []
-    for current_itr in range(len(weights)):
-        converted_output = 1 if output[current_itr] else -1
+    weights = np.array(weights)
+    converted_output = np.array(list(map(lambda o: -1 if o else 1, output)))
+    updated_weights = np.multiply(weights, np.exp(-alpha * converted_output))
 
-        updated_weights.append(
-            weights[current_itr] * math.exp(-alpha * converted_output)
-        )
-
-    norm = 1 / sum(updated_weights)
-
-    return [w * norm for w in updated_weights]
+    return updated_weights / sum(updated_weights)
 
 
 if __name__ == "__main__":
