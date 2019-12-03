@@ -1,5 +1,5 @@
 from sklearn.cluster import AgglomerativeClustering
-from typing import *
+from typing import List, Any, Dict, Tuple
 from sklearn.svm import LinearSVC
 import numpy as np
 from sklearn import metrics
@@ -9,7 +9,7 @@ from example import Example, SentimentExample
 def lwe(
     train_sets: List[List[Example]],
     models: List[object],
-    test_data: List[any],
+    test_data: List[Example],
     threshold: float,
     cluster_value: int = 2,
 ) -> List[any]:
@@ -19,7 +19,7 @@ def lwe(
             list of k training sets D1, D2,..., Dk
         - k classification models
             list of models M1, M2,..., Mk for k > 1
-        - Test set T from a different domain where the classification task is the same
+        - Test set T from a different domain with the same task
         - Threshold and cluster number c
     Outputs:
         - The set of predicted labels Y for examples in T
