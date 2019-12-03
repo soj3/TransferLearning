@@ -20,7 +20,7 @@ def boost():
     print("Finished Collecting Data")
 
     iterations = 20
-    labeled_data = 100
+    percent_same_data = 0.20
 
     confused_matrix_bois = []
     confused_output_bois = []
@@ -33,15 +33,19 @@ def boost():
     d_domain = k_data_folds
     s_domain = d_data_folds
 
-    for f_idx, __ in enumerate(d_domain):
-        d_domain[f_idx][0] = d_domain[f_idx][0][:-labeled_data]
-        d_domain[f_idx][0].append(s_domain[f_idx][0][labeled_data:])
-        d_domain[f_idx][1] = s_domain[f_idx][1]
-
-    for idx, (train, test) in enumerate(d_domain):
+    for idx in range(len(d_domain)):
         print("Running Fold {}".format(idx + 1))
 
-        output, matrix = run_boost(train, test, iterations, labeled_data)
+        d_train = d_domain[idx][0]
+        num_same_data = int(len(s_domain[idx][0]) * percent_same_data)
+        s_train = s_domain[idx][0][:num_same_data]
+        test = s_domain[idx][1]
+        print(
+            "Training on {} diff domain examples and {} same domain examples".format(
+                len(d_train), len(s_train)
+            )
+        )
+        output, matrix = run_boost(d_train, s_train, test, iterations)
         confused_matrix_bois.append(matrix)
         confused_output_bois += output
 
@@ -49,40 +53,48 @@ def boost():
     calculate_aroc(arr_of_confidence=confused_output_bois)
 
 
-def run_boost(train, test, iterations):
-    # Create equal weights for every example
-    for ex in train:
-        ex.weight = 1 / len(train)
+def run_boost(d_train, s_train, test, iterations):
+    normalize_weights(s_train, d_train, reset=True)
 
     classifiers = []
-    classifier_weights = []
+
+    betas = []
+    beta = 1 / (1 + math.sqrt(2 * math.log(len(d_train) / iterations)))
 
     current_itr = 0
 
     # run for the input number of iterations
     while current_itr < iterations:
-        print()
+        normalize_weights(s_train, d_train)
+
         print("Boost Iteration: {}".format(current_itr + 1))
         classifiers.append(DStump())
 
         # randomly sample the training set with replacement
-        classifiers[-1].fit(train)
+        classifiers[-1].fit(d_train + s_train)
 
         # Extract weights and outputs
-        weights = [ex.weight for ex in train]
-        outputs = [classifiers[-1].classify(ex)[0] != ex.label for ex in train]
+        d_weights = [ex.weight for ex in d_train]
+        d_outputs = [[classifiers[-1].classify(ex)[0], ex.label] for ex in d_train]
+        s_weights = [ex.weight for ex in s_train]
+        s_outputs = [[classifiers[-1].classify(ex)[0], ex.label] for ex in s_train]
 
         # Calculate classifier error
-        error = weight_error(weights, outputs)
-        classifier_weights.append(classifier_weight(error))
+        error = weight_error(s_weights, s_outputs)
 
-        if error >= 0.5:
+        if error >= 0.5 or error == 0.0:
+            del classifiers[-1]
             break
 
+        betas.append(error / (1 - error))
+
         # Update the weights
-        new_weights = update_weights(weights, outputs, classifier_weights[-1])
-        for idx, ex in enumerate(train):
-            ex.weight = new_weights[idx]
+        new_diff_weights = update_diff_weights(d_weights, d_outputs, beta)
+        new_same_weights = update_same_weights(s_weights, s_outputs, betas)
+        for idx, ex in enumerate(d_train):
+            ex.weight = new_diff_weights[idx]
+        for idx, ex in enumerate(s_train):
+            ex.weight = new_same_weights[idx]
 
         current_itr += 1
 
@@ -95,18 +107,19 @@ def run_boost(train, test, iterations):
         vote = 0
         sum_conf = 0
 
-        total_class_weight = sum(classifier_weights)
+        use_itr = math.ceil(len(classifiers) / 2)
 
-        for classifier_idx, classifier in enumerate(classifiers):
-            output, conf = classifier.classify(ex)
-            vote += (classifier_weights[classifier_idx] / total_class_weight) * int(
-                output
-            )
+        for idx in range(use_itr, len(classifiers)):
+            output, conf = classifiers[idx].classify(ex)
+            vote *= betas[idx] ** -output
 
             sum_conf += conf
 
         # Make the vote discrete
-        vote = True if vote >= 0.5 else False
+        evaluated_betas = np.array(betas[use_itr:])
+        boundary = np.prod(evaluated_betas ** -0.5)
+
+        vote = True if vote >= boundary else False
 
         # Calculate confidence for given outcome
         total_conf = sum_conf / len(classifiers)
@@ -120,31 +133,51 @@ def run_boost(train, test, iterations):
     return outputs, matrix
 
 
+def normalize_weights(s_train, d_train, reset=False):
+    if reset:
+        for ex in d_train:
+            ex.weight = 1
+
+        for ex in s_train:
+            ex.weight = 1
+
+    weight_sum = sum([ex.weight for ex in d_train])
+    weight_sum += sum([ex.weight for ex in s_train])
+
+    for ex in d_train:
+        ex.weight /= weight_sum
+
+    for ex in s_train:
+        ex.weight /= weight_sum
+
+
 def weight_error(weights, output):
     """
     find the error of the weights
     """
-    return np.sum(np.multiply(weights, output))
+    clean_outputs = np.abs(np.diff(output)).flatten()
+    w_sum = np.sum(np.multiply(weights, clean_outputs))
+    return w_sum / np.sum(weights)
 
 
-def classifier_weight(error):
+def update_diff_weights(weights, output, beta):
     """
-    find the weight of the classifier itself
+    updated the weights of the different domain
     """
-    EPSILON = 1e-10
+    output_sub = np.abs(np.diff(output)).flatten()
+    updated_weights = np.multiply(weights, beta ** output_sub)
 
-    return 0.5 * math.log((1 - error + EPSILON) / (error + EPSILON))
+    return updated_weights
 
 
-def update_weights(weights, output, alpha):
+def update_same_weights(weights, output, betas):
     """
     updated the weights of the data
     """
-    weights = np.array(weights)
-    converted_output = np.array(list(map(lambda o: -1 if o else 1, output)))
-    updated_weights = np.multiply(weights, np.exp(-alpha * converted_output))
+    output_sub = np.abs(np.diff(output)).flatten().astype("float") * -1
+    updated_weights = np.multiply(weights, betas[-1] ** -output_sub)
 
-    return updated_weights / sum(updated_weights)
+    return updated_weights
 
 
 if __name__ == "__main__":
