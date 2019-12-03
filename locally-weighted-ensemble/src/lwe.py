@@ -3,10 +3,11 @@ from typing import *
 from sklearn.svm import LinearSVC
 import numpy as np
 from sklearn import metrics
+from example import Example, SentimentExample
 
 
 def lwe(
-    train_sets: List[List[Any]],
+    train_sets: List[List[Example]],
     models: List[object],
     test_data: List[any],
     threshold: float,
@@ -24,12 +25,15 @@ def lwe(
         - The set of predicted labels Y for examples in T
     """
     cluster = AgglomerativeClustering()
-    predicted_clusters = []
-    for train_data in train_sets:
-        predicted_clusters += cluster.fit_predict(train_data)
+    predicted_clusters = [
+        pred
+        for train_data in train_sets
+        for predictions in cluster.fit_predict(train_data)
+        for pred in predictions
+    ]
 
     # TODO extract the actual cluster/class values from
-    if purity([ex[-1] for ex in train_data], predicted_clusters) > 0.5:
+    if purity([ex[-1] for ex in train_sets], predicted_clusters) > 0.5:
         pass
 
     for ex in test_data:
@@ -40,9 +44,15 @@ def generate_neighborhood():
     pass
 
 
+def conditional_probability(w, x):
+    pass
+
+
 def compute_prediction(y: List[Any], E, x):
     # wM_i, x = P(M_i | x) is the true model weight that is locally adjusted for x representing the model's effectiveness on the test domain
-    return np.sum(np.prod(w[i]))
+    pass
+
+    # return np.sum(np.prod(w[i]))
 
 
 def purity(y_true, y_pred):
