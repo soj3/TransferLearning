@@ -3,11 +3,14 @@ import argparse as argp
 import sklearn.linear_model as model
 import sklearn.decomposition as skd
 from information_gain import calc_mutual_info
+from utils import *
 import numpy as np
 
 
 LAMBDA = 1e-3
 MU = 1e-1
+NUM_PIVOTS = 30
+NUM_FEATURES = 100
 
 
 def source_loss():
@@ -22,7 +25,7 @@ def alpha_dist():
     pass
 
 
-def select_pivots(labeled_source, unlabeled_source, unlabeled_target, source_vocab, target_vocab, num_pivots=500):
+def select_pivots(labeled_source, unlabeled_source, unlabeled_target, source_vocab, target_vocab, num_pivots=NUM_PIVOTS):
     # want to choose the num_pivots features with the highest mutual information gain to the source label
     # sort the features according to how many times they occur in both the source and target domains
     # then, choose the num_pivots features with the highest mutual info to the source label
@@ -62,11 +65,16 @@ def select_pivots(labeled_source, unlabeled_source, unlabeled_target, source_voc
 def get_pivot_predictor_weights(data, vocab, pivots):
     weights = []
     j = 1
+    # for each pivot, we create a classifier that predicts the likelihood of that pivot appearing in the example,
+    # given all of the other features (i.e. words) of the example
     for pivot in pivots:
-        print(pivot)
         x = []
         y = []
-        temp_vocab = [(k,v) for (k,v) in vocab if k != pivot]
+        # remove the pivot from the vocabulary
+        temp_vocab = [(k, v) for (k, v) in vocab if k != pivot]
+        # Here the class label is 1 or 0 depending on the appearance of the pivot in the example
+        # maybe i should change this to -1 because we want the classifier to output a negative number if the
+        # pivot is not there?
         for i in range(len(data)):
             if pivot in data[i].words:
                 y.append(1)
@@ -75,56 +83,97 @@ def get_pivot_predictor_weights(data, vocab, pivots):
             data[i].create_features(temp_vocab)
             x.append(data[i].features)
         print("Training pivot predictor", j)
+        # train a Stochastic gradient descent classifier using the modified Huber loss function
         classifier = model.SGDClassifier(loss="modified_huber")
         classifier.fit(x, y)
-        #print(classifier.coef_)
-        weights.append(classifier.coef_)
-        j +=1
+        weight = []
+        for i in classifier.coef_[0]:
+            weight.append(i)
+        weights.append(weight)
+        j += 1
     return weights
+
+
+def create_classifiers(pivot_matrix, train_source, train_source_labels, train_target, train_target_labels):
+
+    classifiers = []
+
+    # train the baseline classifier, which is a linear model with no adaptation
+    print("Training baseline...")
+    baseline = model.SGDClassifier(loss="modified_huber")
+    baseline.fit(train_source, train_source_labels)
+    classifiers.append(baseline)
+
+    # train the source classifier with adaptation
+    print("Training source classifier...")
+    for ex in train_source:
+        adapted_features = np.dot(ex, pivot_matrix)
+        ex.extend(adapted_features)
+    source = model.SGDClassifier(loss="modified_huber")
+    source.fit(train_source, train_source_labels)
+    classifiers.append(source)
+
+    # train the target classifier with adaptation
+    print("Training target classifier...")
+    for ex in train_target:
+        adapted_features = np.dot(ex, pivot_matrix)
+        ex.extend(adapted_features)
+    target = model.SGDClassifier(loss="modified_huber")
+    target.fit(train_target, train_target_labels)
+    classifiers.append(target)
+
+    return classifiers
 
 
 def scl(source, target):
     print("Reading data...")
     source_labeled, source_unlabeled, source_vocab = data.collect_review_data(source)
-    _, target_unlabeled, target_vocab = data.collect_review_data(target)
+    target_labeled, target_unlabeled, target_vocab = data.collect_review_data(target)
+
     print("Selecting pivots...")
     pivots = select_pivots(source_labeled, source_unlabeled, target_unlabeled, source_vocab, target_vocab)
 
     # create a binary classifier for each pivot feature on the combined unlabeled data of the source and target
+
     unlabeled_data = source_unlabeled + target_unlabeled
     merged_vocab = merge_list(source_vocab, target_vocab)
+    final_vocab = merge_pivots_and_vocab(merged_vocab[:NUM_FEATURES], pivots)
+
     print("Collecting pivot predictor weights...")
-    weights = get_pivot_predictor_weights(unlabeled_data, merged_vocab[:500], pivots)
-    weights = np.asmatrix(weights).transpose()
+    weights = get_pivot_predictor_weights(unlabeled_data, final_vocab[:NUM_FEATURES + 1], pivots)
+
     # compute the Singular value decomposition of the weights matrix
+    print("Calculating SVD...")
+    weights = np.asmatrix(weights, dtype=float).transpose()
     svd = skd.TruncatedSVD(n_components=25)
     pivot_matrix = svd.fit_transform(weights)
-    print(pivot_matrix)
+
+    print("Training classifiers...")
+
+    for ex in source_labeled:
+        ex.create_features(source_vocab[:NUM_FEATURES])
+    for ex in target_labeled:
+        ex.create_features(target_vocab[:NUM_FEATURES])
+
+    train_source, train_source_labels, test_source, test_source_labels = split_data(source_labeled)
+    train_target, train_target_labels, test_target, test_target_labels = split_data(target_labeled)
+
+    classifiers = create_classifiers(pivot_matrix, train_source, train_source_labels, train_target, train_target_labels)
 
 
 def main():
-    #ap = argp.ArgumentParser()
-    #ap.add_argument("-s", "--source", required=True, help="Source domain")
-    #ap.add_argument("-t", "--target", required=True, help="Target domain")
-    #args = vars(ap.parse_args())
+    # ap = argp.ArgumentParser()
+    # ap.add_argument("-s", "--source", required=True, help="Source domain")
+    # ap.add_argument("-t", "--target", required=True, help="Target domain")
+    # args = vars(ap.parse_args())
 
     scl("books", "dvd")
     # split source and target datasets into training and testing data
-    #baseline classifier
+    # baseline classifier
 
+    # classifier trained in domain
 
-    #classifier trained in domain
-
-    #classifiers trained on new domains
-
-def merge_list(list1, list2):
-    dict1 = dict(list1)
-    dict2 = dict(list2)
-    dict3 = {**dict1, **dict2}
-    for key in dict3.keys():
-        if key in dict1.keys() and key in dict2.keys():
-            dict3[key] = dict1[key] + dict2[key]
-    return list(dict3.items())
+    # classifiers trained on new domains
 
 
 if __name__ == "__main__":
