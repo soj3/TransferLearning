@@ -54,7 +54,6 @@ def run_boost(train, test, iterations):
 
     # run for the input number of iterations
     while current_itr < iterations:
-        print()
         print("Boost Iteration: {}".format(current_itr + 1))
         classifiers.append(DStump())
 

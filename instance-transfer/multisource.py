@@ -30,22 +30,27 @@ def boost():
     e_data_folds = n_fold_cross_validation(e_data)
     k_data_folds = n_fold_cross_validation(k_data)
 
-    d_domain = k_data_folds
+    d_domains = [k_data_folds, e_data_folds, b_data_folds]
     s_domain = d_data_folds
 
-    for idx in range(len(d_domain)):
+    for idx in range(len(s_domain)):
         print("Running Fold {}".format(idx + 1))
 
-        d_train = d_domain[idx][0]
+        d_train_domains = []
+        for d_domain in d_domains:
+            d_train_domains.append(d_domain[idx][0])
+
         num_same_data = int(len(s_domain[idx][0]) * percent_same_data)
         s_train = s_domain[idx][0][:num_same_data]
+
         test = s_domain[idx][1]
+
         print(
-            "Training on {} diff domain examples and {} same domain examples".format(
-                len(d_train), len(s_train)
+            "Training on {} diff domains and {} same domain examples".format(
+                len(d_train_domains), len(s_train)
             )
         )
-        output, matrix = run_boost(d_train, s_train, test, iterations)
+        output, matrix = run_boost(d_train_domains, s_train, test, iterations)
         confused_matrix_bois.append(matrix)
         confused_output_bois += output
 
@@ -53,46 +58,59 @@ def boost():
     calculate_aroc(arr_of_confidence=confused_output_bois)
 
 
-def run_boost(d_train, s_train, test, iterations):
-    normalize_weights(s_train, d_train, reset=True)
+def run_boost(d_train_domains, s_train, test, iterations):
+    normalize_weights(d_train_domains, s_train, reset=True)
 
     classifiers = []
 
-    betas = []
-    beta = 1 / (1 + math.sqrt(2 * math.log(len(d_train) / iterations)))
+    alphas = []
+    diff_exs = sum([len(d_train) for d_train in d_train_domains])
+    alpha = 0.5 * math.log(1 + math.sqrt(2 * math.log(diff_exs / iterations)))
 
     current_itr = 0
 
     # run for the input number of iterations
     while current_itr < iterations:
-        normalize_weights(s_train, d_train)
-
         print("Boost Iteration: {}".format(current_itr + 1))
-        classifiers.append(DStump())
 
-        # randomly sample the training set with replacement
-        classifiers[-1].fit(d_train + s_train)
+        normalize_weights(d_train_domains, s_train)
 
-        # Extract weights and outputs
-        d_weights = [ex.weight for ex in d_train]
-        d_outputs = [[classifiers[-1].classify(ex)[0], ex.label] for ex in d_train]
-        s_weights = [ex.weight for ex in s_train]
-        s_outputs = [[classifiers[-1].classify(ex)[0], ex.label] for ex in s_train]
+        # Find best domain
+        best_domain_classifier = None
+        best_error = 1
+        for d_train in d_train_domains:
+            clf = DStump()
+            clf.fit(d_train + s_train)
 
-        # Calculate classifier error
-        error = weight_error(s_weights, s_outputs)
+            # Extract weights and outputs
+            s_weights = [ex.weight for ex in s_train]
+            s_outputs = [[clf.classify(ex)[0], ex.label] for ex in s_train]
 
-        if error >= 0.5 or error == 0.0:
+            # Calculate classifier error
+            error = weight_error(s_weights, s_outputs)
+
+            if error < best_error:
+                best_error = error
+                best_domain_classifier = clf
+
+        classifiers.append(clf)
+
+        if best_error >= 0.5 or best_error == 0.0:
             del classifiers[-1]
             break
 
-        betas.append(error / (1 - error))
+        alphas.append(0.5 * math.log((1 - error) / error))
 
         # Update the weights
-        new_diff_weights = update_diff_weights(d_weights, d_outputs, beta)
-        new_same_weights = update_same_weights(s_weights, s_outputs, betas)
-        for idx, ex in enumerate(d_train):
-            ex.weight = new_diff_weights[idx]
+        for d_train in d_train_domains:
+            d_weights = [ex.weight for ex in d_train]
+            d_outputs = [[classifiers[-1].classify(ex)[0], ex.label] for ex in d_train]
+
+            new_diff_weights = update_diff_weights(d_weights, d_outputs, alpha)
+            for idx, ex in enumerate(d_train):
+                ex.weight = new_diff_weights[idx]
+
+        new_same_weights = update_same_weights(s_weights, s_outputs, alphas)
         for idx, ex in enumerate(s_train):
             ex.weight = new_same_weights[idx]
 
@@ -111,15 +129,12 @@ def run_boost(d_train, s_train, test, iterations):
 
         for idx in range(use_itr, len(classifiers)):
             output, conf = classifiers[idx].classify(ex)
-            vote *= betas[idx] ** -output
+            vote += alphas[idx] * output
 
             sum_conf += conf
 
         # Make the vote discrete
-        evaluated_betas = np.array(betas[use_itr:])
-        boundary = np.prod(evaluated_betas ** -0.5)
-
-        vote = True if vote >= boundary else False
+        vote = True if vote >= 0 else False
 
         # Calculate confidence for given outcome
         total_conf = sum_conf / len(classifiers)
@@ -133,19 +148,27 @@ def run_boost(d_train, s_train, test, iterations):
     return outputs, matrix
 
 
-def normalize_weights(s_train, d_train, reset=False):
+def normalize_weights(d_train_domains, s_train, reset=False):
+    """
+    Normalizes all the training weights
+    """
     if reset:
-        for ex in d_train:
-            ex.weight = 1
+        for d_train in d_train_domains:
+            for ex in d_train:
+                ex.weight = 1
 
         for ex in s_train:
             ex.weight = 1
 
-    weight_sum = sum([ex.weight for ex in d_train])
-    weight_sum += sum([ex.weight for ex in s_train])
+    weight_sum = sum([ex.weight for ex in s_train])
 
-    for ex in d_train:
-        ex.weight /= weight_sum
+    for d_train in d_train_domains:
+        for ex in d_train:
+            weight_sum += ex.weight
+
+    for d_train in d_train_domains:
+        for ex in d_train:
+            ex.weight /= weight_sum
 
     for ex in s_train:
         ex.weight /= weight_sum
@@ -160,22 +183,22 @@ def weight_error(weights, output):
     return w_sum / np.sum(weights)
 
 
-def update_diff_weights(weights, output, beta):
+def update_diff_weights(weights, output, alpha):
     """
     updated the weights of the different domain
     """
     output_sub = np.abs(np.diff(output)).flatten()
-    updated_weights = np.multiply(weights, beta ** output_sub)
+    updated_weights = np.multiply(weights, np.exp(output_sub * -alpha))
 
     return updated_weights
 
 
-def update_same_weights(weights, output, betas):
+def update_same_weights(weights, output, alphas):
     """
     updated the weights of the data
     """
     output_sub = np.abs(np.diff(output)).flatten().astype("float") * -1
-    updated_weights = np.multiply(weights, betas[-1] ** -output_sub)
+    updated_weights = np.multiply(weights, np.exp(output_sub * alphas[-1]))
 
     return updated_weights
 

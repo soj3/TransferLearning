@@ -15,6 +15,7 @@ class SentimentExample(Example):
         self.words = words
 
     def create_features(self, vocab: List[Tuple[str, int]]) -> None:
+        self.features = []
         for v, __ in vocab:
             if v in self.words:
                 self.features.append(self.words[v])
