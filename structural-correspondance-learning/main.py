@@ -9,8 +9,8 @@ import numpy as np
 
 LAMBDA = 1e-3
 MU = 1e-1
-NUM_PIVOTS = 30
-NUM_FEATURES = 100
+NUM_PIVOTS = 500
+NUM_FEATURES = 5000
 
 
 def source_loss():
@@ -60,7 +60,7 @@ def scl(source, target):
 
     classifiers = create_classifiers(pivot_matrix, train_source, train_source_labels, train_target, train_target_labels)
 
-    evaluate_classifiers(classifiers, test_source, test_source_labels, test_target, test_target_labels)
+    evaluate_classifiers(classifiers, test_source, test_source_labels, test_target, test_target_labels, pivot_matrix)
 
 
 def main():

@@ -2,8 +2,71 @@ import sklearn.linear_model as model
 import numpy as np
 
 
-def evaluate_classifiers(classifiers, test_source, test_source_labels, test_target, test_target_labels):
-    pass
+def evaluate_classifiers(classifiers, test_source, test_source_labels, test_target, test_target_labels, pivot_matrix):
+    adapted = False
+    for name, classifier in classifiers:
+        if name == "Baseline":
+            print("Testing Baseline...")
+            source_predictions = classifier.predict(test_source)
+            source_correct = 0
+            for i in range(len(source_predictions)):
+                if source_predictions[i] == test_source_labels[i]:
+                    source_correct += 1
+            source_acc = source_correct/len(test_source)
+            print("Baseline accuracy on source: ", source_acc)
+
+            target_predictions = classifier.predict(test_target)
+            target_correct = 0
+            for i in range(len(target_predictions)):
+                if target_predictions[i] == test_target_labels[i]:
+                    target_correct += 1
+            target_acc = target_correct / len(test_target)
+            print("Baseline accuracy on target: ", target_acc)
+        if not adapted:
+            for ex in test_source:
+                adapted_features = np.dot(ex, pivot_matrix)
+                ex.extend(adapted_features)
+
+            for ex in test_target:
+                adapted_features = np.dot(ex, pivot_matrix)
+                ex.extend(adapted_features)
+            adapted = True
+
+        if name == "Source":
+            print("Testing Source...")
+            source_predictions = classifier.predict(test_source)
+            source_correct = 0
+            for i in range(len(source_predictions)):
+                if source_predictions[i] == test_source_labels[i]:
+                    source_correct += 1
+            source_acc = source_correct / len(test_source)
+            print("Source accuracy on source: ", source_acc)
+
+            target_predictions = classifier.predict(test_target)
+            target_correct = 0
+            for i in range(len(target_predictions)):
+                if target_predictions[i] == test_target_labels[i]:
+                    target_correct += 1
+            target_acc = target_correct / len(test_target)
+            print("Source accuracy on target: ", target_acc)
+
+        if name == "Target":
+            print("Testing Target...")
+            source_predictions = classifier.predict(test_source)
+            source_correct = 0
+            for i in range(len(source_predictions)):
+                if source_predictions[i] == test_source_labels[i]:
+                    source_correct += 1
+            source_acc = source_correct / len(test_source)
+            print("Target accuracy on source: ", source_acc)
+
+            target_predictions = classifier.predict(test_target)
+            target_correct = 0
+            for i in range(len(target_predictions)):
+                if target_predictions[i] == test_target_labels[i]:
+                    target_correct += 1
+            target_acc = target_correct / len(test_target)
+            print("Target accuracy on target: ", target_acc)
 
 
 def create_classifiers(pivot_matrix, train_source, train_source_labels, train_target, train_target_labels):
