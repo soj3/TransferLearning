@@ -61,7 +61,7 @@ def select_pivots(labeled_source, unlabeled_source, unlabeled_target, source_voc
 
 def get_pivot_predictor_weights(data, vocab, pivots):
     weights = []
-    i = 1
+    j = 1
     for pivot in pivots:
         print(pivot)
         x = []
@@ -74,12 +74,12 @@ def get_pivot_predictor_weights(data, vocab, pivots):
                 y.append(0)
             data[i].create_features(temp_vocab)
             x.append(data[i].features)
-        print("Training pivot predictor ", i)
+        print("Training pivot predictor", j)
         classifier = model.SGDClassifier(loss="modified_huber")
         classifier.fit(x, y)
         #print(classifier.coef_)
         weights.append(classifier.coef_)
-        i +=1
+        j +=1
     return weights
 
 
@@ -101,6 +101,7 @@ def scl(source, target):
     pivot_matrix = svd.fit_transform(weights)
     print(pivot_matrix)
 
+
 def main():
     #ap = argp.ArgumentParser()
     #ap.add_argument("-s", "--source", required=True, help="Source domain")
@@ -116,8 +117,6 @@ def main():
 
     #classifiers trained on new domains
 
-
-
 def merge_list(list1, list2):
     dict1 = dict(list1)
     dict2 = dict(list2)
@@ -126,7 +125,6 @@ def merge_list(list1, list2):
         if key in dict1.keys() and key in dict2.keys():
             dict3[key] = dict1[key] + dict2[key]
     return list(dict3.items())
-
 
 
 if __name__ == "__main__":
