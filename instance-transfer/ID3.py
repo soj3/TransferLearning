@@ -1,6 +1,5 @@
 from stump import Stump
 from gain import info_gain
-from mldata import *
 from helpers import *
 
 
@@ -9,38 +8,37 @@ def ID3(examples):
     returns a tree built using the ID3 algorithm, with each successive level
     containing the attribute with the most information gain for a set of examples
     """
-    attrs = examples.schema
+
+    num_features = len(examples[0].features)
 
     best_gain = -1
     best_attribute = None
-    best_attribute_idx = None
 
-    for idx, attribute in enumerate(attrs):
-        temp_gain = best_split_nominal(attrs, examples, idx)
+    for idx in range(num_features):
+        temp_gain = best_split_nominal(examples, idx)
+        # print("Attribute: {}, Split: {}, Gain: {}".format(idx, temp_split, temp_gain))
         if temp_gain > best_gain:
             best_gain = temp_gain
-            best_attribute = attribute
-            best_attribute_idx = idx
+            best_attribute = idx
+
+    # Gets all possible values of the attribute
+    values_set = set(ex.features[best_attribute] for ex in examples)
 
     # Sets decision attribute
-
     root = Stump(best_attribute)
-    for value in root.attribute.values:
-        filtered_examples = [
-            example for example in examples if example[best_attribute_idx] == value
-        ]
-
-        label = most_common_labels(filtered_examples)
+    for value in values_set:
+        f_exs = [ex for ex in examples if ex.features[best_attribute] == value]
+        label = most_common_labels(f_exs)[0]
 
         root.values[value] = label
     return root
 
 
-def best_split_nominal(attributes, examples, attr_idx):
+def best_split_nominal(examples, attr_idx):
     """
     finds the information gain or gain ratio of a nominal attribute
     """
     label_occ = calculate_label_occurrences(examples)
-    nominal_occ = calculate_nominal_occurrences(attributes, examples, attr_idx)
+    nominal_occ = calculate_nominal_occurrences(examples, attr_idx)
 
     return info_gain(label_occ, nominal_occ)

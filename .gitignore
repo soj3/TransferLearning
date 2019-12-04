@@ -4,3 +4,6 @@ domain-adaptation-feda/Code/venv/
 domain-adaptation-feda/Code/.idea/
 
 domain-adaptation-feda/Code/SCL.py
+
+*.pyc
+.vscode/
