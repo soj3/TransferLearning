@@ -11,10 +11,7 @@ def collect_review_data(num_features: int = 3000):
     domains = ["books", "dvd", "electronics", "kitchen"]
 
     vocab = {}
-    reviews_domains = []
-    for domain in domains:
-        reviews_domains.append(read_reviews(domain, vocab))
-
+    reviews_domains = [read_reviews(domain, vocab) for domain in domains]
     vocab = sorted(vocab.items(), key=lambda item: item[1])[::-1]
 
     for reviews in reviews_domains:
@@ -27,9 +24,7 @@ def collect_review_data(num_features: int = 3000):
 def read_reviews(domain, vocab):
     domain_folder = join(acl_folder, domain)
     file_names = ["negative.review", "positive.review", "unlabeled.review"]
-
     reviews = []
-
     for file_name in file_names:
         with open(join(domain_folder, file_name), "r") as f:
             for line in f:
@@ -50,6 +45,6 @@ def parse_line(line, vocab):
         words_dict[word] = count
 
     label = split[-1].split(":")[1][:-1]
-    bool_label = 1 if label == "positive" else 0
+    bool_label = int(label == "positive")
     return SentimentExample(words_dict, bool_label)
 
