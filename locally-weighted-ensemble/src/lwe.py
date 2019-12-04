@@ -15,22 +15,18 @@ def lwe(
     test_data: List[Example],
     threshold: float,
     num_clusters: int = 2,
-) -> List[any]:
-
+) -> List[Tuple[Example, float]]:
     """
     Inputs:
-
-        - train_data:
-            list of k training sets D1, D2,..., Dk
-        - modesl:
-            list of models M1, M2,..., Mk for k > 1
-        - test_data:
-            test set from a different domain with the same task
-        - Threshold
-        - cluster number for localizing the test domain
+    -------
+        train_data: list of k training sets D1, D2,..., Dk
+        models: list of models M1, M2,..., Mk for k > 1
+        test_data: test set from a different domain with the same task
+        threshold: the value at which to choose an example label from weighted ensemble output vs placing the example directly into T'
+        num_clusters: number for localizing the test domain
     Outputs:
-
-        - The set of predicted labels Y for examples in T
+    -------
+        returns a collection of tuples containing examples in the test set and the probability of a positive classification
     """
 
     # use a hierarchial clustering model to separate into 'positive' and 'negative' clusters
@@ -42,30 +38,38 @@ def lwe(
     ]
 
 
-def s(gm: Graph, gt: Graph, x: Example):
+def similarity(gm: Graph, gt: Graph, x: Example) -> float:
+    """
+    Return the similarity of model and cluster graphs in the neighborhood of an example
+    Inputs:
+    -------
+        gm: the graph produced by a base model from a training set
+        gt: the graph produced by clustering on the testing set
+        x: the example central to the neighborhoods being compared
+    Outputs:
+    -------
+        returns a real valued 0 <= s <= 1 denoting the ratio of common neighbors of x between gm and gt
+    """
+    gm_neighbors = set(gm.neighbors(x))
+    gt_neighbors = set(gt.neighbors(x))
 
-    pass
+    # return the ratio of intersection and union cardinalities
+    return len(gm_neighbors & gt_neighbors) / len(gm_neighbors | gt_neighbors)
 
 
 def generate_neighborhood(
     train: List[Example], test: List[Example], model: LinearModel, num_clusters=2
-):
+) -> Tuple[Graph, Graph]:
     """
     Implementation necessary for the proposed weight caculation in eq. 5 of Gao et. al
-
     Inputs:
-
-        - train:
-            a single training set of examples
-        - test:
-            a single testing set of examples from a separate domain from train
-        - model:
-            a base model which has been trained on train to be evaluated on test and compared
-            with clustering results
-
+    ------
+        train: a single training set of examples
+        test: a single testing set of examples from a separate domain from train
+        model: a base model which has been trained on train to be evaluated on test and compared with clustering results
     Outputs:
-
-        - a tuple of the graphs (gm, gt) as used in eq. 5 for the model weight calculation
+    -------
+        returns a tuple of the graphs (gm, gt) as used in eq. 5 for the model weight calculation
     """
     gt, gm = Graph(), Graph()
     gm.add_nodes_from(test)
@@ -81,22 +85,14 @@ def generate_neighborhood(
     for u, m1, c1 in preds:
         for v, m2, c2 in preds:
             if u is not v:
-                # if the examples have the same predicted output from the model on the test set, add a connecting edge
+                # if the examples have the same predicted output from the model on the test set, add a connecting edge in gm
                 if m1 == m2:
                     gm.add_edge(u, v)
+
+                # if the examples are members of the same cluster on the test set, add a connecting edge in gt
                 if c1 == c2:
                     gt.add_edge(u, v)
     return gm, gt
-
-
-def conditional_probability(w, x):
-    pass
-
-
-def compute_prediction(m: LinearModel, examples: List[Example]):
-    # wM_i, x = P(M_i | x) is the true model weight that is locally adjusted for x representing the model's effectiveness on the test domain
-    m.predict(examples)
-    # return np.sum(np.prod(w[i]))
 
 
 def purity(y_true, y_pred):
