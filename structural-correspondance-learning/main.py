@@ -37,13 +37,16 @@ def scl(source, target):
 
     unlabeled_data = source_unlabeled + target_unlabeled
     merged_vocab = merge_list(source_vocab, target_vocab)
-    final_vocab = merge_pivots_and_vocab(merged_vocab[:NUM_FEATURES], pivots)
-
+    final_vocab = merge_pivots_and_vocab(merged_vocab[:10000], pivots)
+    final_vocab = merge_pivots_and_vocab(final_vocab[:10000], pivots)
     print("Collecting pivot predictor weights...")
-    weights = get_pivot_predictor_weights(unlabeled_data, final_vocab[:NUM_FEATURES + 1], pivots)
+    weights = get_pivot_predictor_weights(unlabeled_data, final_vocab[:NUM_FEATURES], pivots, NUM_FEATURES-1)
 
     # compute the Singular value decomposition of the weights matrix
     print("Calculating SVD...")
+    row_len = len(weights[0])
+    for weight in weights:
+        assert len(weight) == row_len
     weights = np.asmatrix(weights, dtype=float).transpose()
     svd = skd.TruncatedSVD(n_components=25)
     pivot_matrix = svd.fit_transform(weights)
@@ -51,9 +54,9 @@ def scl(source, target):
     print("Training classifiers...")
 
     for ex in source_labeled:
-        ex.create_features(source_vocab[:NUM_FEATURES])
+        ex.create_features(source_vocab[:NUM_FEATURES-1])
     for ex in target_labeled:
-        ex.create_features(target_vocab[:NUM_FEATURES])
+        ex.create_features(target_vocab[:NUM_FEATURES-1])
 
     train_source, train_source_labels, test_source, test_source_labels = split_data(source_labeled)
     train_target, train_target_labels, test_target, test_target_labels = split_data(target_labeled)
@@ -70,6 +73,11 @@ def main():
     # args = vars(ap.parse_args())
 
     scl("books", "dvd")
+    # scl("books", "kitchen")
+    # scl("books", "electronics")
+    # scl("dvd", "electronics")
+    # scl("dvd", "kitchen")
+    # scl("electronics", "kitchen")
     # split source and target datasets into training and testing data
     # baseline classifier
 
