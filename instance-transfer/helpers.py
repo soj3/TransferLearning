@@ -1,8 +1,10 @@
 from collections import Counter
 from typing import List, Set
 from example import Example
+from bin import Bin
 import numpy as np
 import random
+from copy import deepcopy
 
 
 def n_fold_cross_validation(examples, num_folds=5):
@@ -42,20 +44,57 @@ def calculate_label_occurrences(examples):
     return [positive_examples, len(examples) - positive_examples]
 
 
-def calculate_nominal_occurrences(examples: List[Example], attr_idx: int):
+def calculate_continuous_occurrences(
+    examples: List[Example], num_of_bins: int, attr_idx: int
+):
     """
-    Finds the occurrences of each value of a nominal attribute
+    Finds the occurrences of each value of a continuous attribute
+        returns array of bins
     """
-    value_occs = {}
+    examples = sorted(examples, key=lambda example: (example.features[attr_idx]))
 
+    bins = calculate_cont_bin_values(examples, num_of_bins, attr_idx)
+
+    pos_ex = [ex for ex in examples if ex.label]
+    neg_ex = [ex for ex in examples if not ex.label]
+
+    pos_bins = deepcopy(bins)
+    neg_bins = deepcopy(bins)
+
+    calculate_continuous_occurrences_label(pos_ex, pos_bins, attr_idx)
+    calculate_continuous_occurrences_label(neg_ex, neg_bins, attr_idx)
+
+    return pos_bins, neg_bins
+
+
+def calculate_cont_bin_values(examples: List[Example], num_of_bins: int, attr_idx: int):
+    num_in_bin = int(len(examples) / num_of_bins)
+    bin_separators = []
+
+    for bin_idx in range(1, num_of_bins):
+        bin_separators.append(examples[bin_idx * num_in_bin].features[attr_idx])
+
+    bins = []
+    i = 0
+
+    bins.append(Bin(float("-inf"), bin_separators[i]))
+    while i < len(bin_separators) - 1:
+        bins.append(Bin(bin_separators[i], bin_separators[i + 1]))
+        i += 1
+    bins.append(Bin(bin_separators[-1], float("+inf")))
+
+    return bins
+
+
+def calculate_continuous_occurrences_label(examples: List[Example], bins, attr_idx):
+    bin_idx = 0
     for example in examples:
-        value = example.features[attr_idx]
+        while (
+            not bins[bin_idx].fits_in_bin(example.features[attr_idx])
+            and bin_idx < len(bins) - 1
+        ):
+            bin_idx += 1
+        if bins[bin_idx].fits_in_bin(example.features[attr_idx]):
+            bins[bin_idx].add_to_bin(example.weight)
 
-        if value not in value_occs:
-            value_occs[value] = [0, 0]
-
-        value_occs[example.features[attr_idx]][
-            int(example.label != 1)
-        ] += example.weight
-
-    return [value_occ for key, value_occ in value_occs.items()]
+    return bins
