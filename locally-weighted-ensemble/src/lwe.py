@@ -8,47 +8,81 @@ from networkx import Graph
 import numpy as np
 from typing import List, Any, Dict, Tuple
 
+n_clusters = 2
+
 
 def lwe(
-    train_sets: List[List[Example]],
+    train: List[List[Example]],
     models: List[LinearModel],
-    test_data: List[Example],
+    test: List[Example],
     threshold: float,
-    num_clusters: int = 2,
+    clusters: int = n_clusters,
 ) -> List[Tuple[Example, float]]:
     """
-    Inputs:
+    Locally Weighted Ensembling Implementation (Gao et. al)
+    Parameters:
     -------
-        train_data: list of k training sets D1, D2,..., Dk
+        train: list of k training sets D1, D2,..., Dk
         models: list of models M1, M2,..., Mk for k > 1
-        test_data: test set from a different domain with the same task
+        test: test set from a different domain with the same task
         threshold: the value at which to choose an example label from weighted ensemble output vs placing the example directly into T'
-        num_clusters: number for localizing the test domain
-    Outputs:
+        clusters: number for localizing the test domain
+    Returns:
     -------
-        returns a collection of tuples containing examples in the test set and the probability of a positive classification
+        a collection of tuples containing examples in the test set and the probability of a positive classification
     """
 
     # use a hierarchial clustering model to separate into 'positive' and 'negative' clusters
-    cluster = Cluster(n_clusters=num_clusters)
-    predicted_clusters = [
-        prediction
-        for prediction in cluster.fit_predict(train_data)
-        for train_data in train_sets
-    ]
+    cluster = Cluster(n_clusters=clusters)
+    labels = [ex.label for ex in test]
+
+    cluster_predictions = []
+    model_predictions = []
+    cluster_purities = []
+    for data, model in zip(train, models):
+        cluster_predictions.append(cluster.fit_predict(data))
+        cluster_purities.append(purity(labels, cluster_predictions[-1]))
+        model.fit(data)
+        model_predictions.append(model.predict(test))
+
+    # if cluster purity is irrelevant, then return average of all the predictions
+    if sum(cluster_purities) / len(cluster_purities) < 0.5:
+        weight = 1 / len(models)
+        output = np.zeros(len(test[0]))
+        for model in models:
+            output = np.add(output, model.predict(test))
+        return np.multiply(weight, output)
+
+    neighborhoods = {
+        model: generate_neighborhood(data=test, model=model, clusters=n_clusters)
+        for model in models
+    }
+    t_prime = []
+    for x in test:
+        weights = [s(gm, gt, x) for gm, gt in neighborhoods]
+        # average (sum/len) s(x) >= delta
+        if sum(weights) / len(weights) >= threshold:
+            output = np.zeros(len(test[0]))
+            for model in models:
+                output = np.add(output, model.predict(test))
+        else:
+            t_prime.append(x)
+
+    for x in t_prime:
+        pass
 
 
-def similarity(gm: Graph, gt: Graph, x: Example) -> float:
+def s(gm: Graph, gt: Graph, x: Example) -> float:
     """
     Return the similarity of model and cluster graphs in the neighborhood of an example
-    Inputs:
+    Parameters:
     -------
         gm: the graph produced by a base model from a training set
         gt: the graph produced by clustering on the testing set
         x: the example central to the neighborhoods being compared
-    Outputs:
+    Returns:
     -------
-        returns a real valued 0 <= s <= 1 denoting the ratio of common neighbors of x between gm and gt
+        a real valued 0 <= s <= 1 denoting the ratio of common neighbors of x between gm and gt
     """
     gm_neighbors = set(gm.neighbors(x))
     gt_neighbors = set(gt.neighbors(x))
@@ -58,30 +92,30 @@ def similarity(gm: Graph, gt: Graph, x: Example) -> float:
 
 
 def generate_neighborhood(
-    train: List[Example], test: List[Example], model: LinearModel, num_clusters=2
+    data: List[Example], model: LinearModel, clusters: int = n_clusters
 ) -> Tuple[Graph, Graph]:
     """
     Implementation necessary for the proposed weight caculation in eq. 5 of Gao et. al
-    Inputs:
+    Parameters:
     ------
         train: a single training set of examples
         test: a single testing set of examples from a separate domain from train
         model: a base model which has been trained on train to be evaluated on test and compared with clustering results
-    Outputs:
+        clusters: number for localizing the test domain
+    Returns:
     -------
-        returns a tuple of the graphs (gm, gt) as used in eq. 5 for the model weight calculation
+        a tuple of the graphs (gm, gt) as used in eq. 5 for the model weight calculation
     """
     gt, gm = Graph(), Graph()
-    gm.add_nodes_from(test)
-    gt.add_nodes_from(test)
+    gm.add_nodes_from(data)
+    gt.add_nodes_from(data)
 
-    model.fit(train)
-    model_predictions = model.predict(test)
+    model_predictions = model.predict(data)
 
-    cluster = Cluster(n_clusters=num_clusters)
-    cluster_predictions = cluster.fit_predict(test)
+    cluster = Cluster(n_clusters=clusters)
+    cluster_predictions = cluster.fit_predict(data)
 
-    preds = zip(test, model_predictions, cluster_predictions)
+    preds = zip(data, model_predictions, cluster_predictions)
     for u, m1, c1 in preds:
         for v, m2, c2 in preds:
             if u is not v:
@@ -95,8 +129,17 @@ def generate_neighborhood(
     return gm, gt
 
 
-def purity(y_true, y_pred):
+def purity(y: List[float], y_hat: List[float]) -> float:
+    """
+    Parameters:
+    -------
+        y: the supervised output labels
+        y_hat: the predicted output labels
+    Returns:
+    -------
+        the purity of clustering output predictions compared to class annotations
+    """
     # compute contingency matrix (also called confusion matrix)
-    matrix = metrics.cluster.contingency_matrix(y_true, y_pred)
+    matrix = metrics.cluster.contingency_matrix(y, y_hat)
     # return purity
     return np.sum(np.amax(matrix, axis=0)) / np.sum(matrix)
