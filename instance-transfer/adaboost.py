@@ -5,7 +5,7 @@ import sys
 from data import collect_review_data
 from example import SentimentExample
 from helpers import n_fold_cross_validation
-from nbayes import nbayes
+from sklearn.naive_bayes import MultinomialNB
 from stats import calculate_aroc, calculate_stats
 import matplotlib.pyplot as plt
 
@@ -16,7 +16,7 @@ def boost():
     """
 
     print("Collecting Data")
-    b_data, d_data, e_data, k_data = collect_review_data(100)
+    b_data, d_data, e_data, k_data = collect_review_data(10000)
     print("Finished Collecting Data")
 
     iterations = 20
@@ -55,14 +55,17 @@ def run_boost(train, test, iterations):
     # run for the input number of iterations
     while current_itr < iterations:
         print("Boost Iteration: {}".format(current_itr + 1))
-        classifiers.append(nbayes())
+        classifiers.append(MultinomialNB())
 
         # randomly sample the training set with replacement
-        classifiers[-1].fit(train)
+        data = [ex.features for ex in train]
+        labels = [ex.label for ex in train]
+
+        classifiers[-1].fit(data, labels)
 
         # Extract weights and outputs
         weights = [ex.weight for ex in train]
-        outputs = [classifiers[-1].classify(ex)[0] != ex.label for ex in train]
+        outputs = np.array(classifiers[-1].predict(data)) != labels
 
         # Calculate classifier error
         error = weight_error(weights, outputs)
@@ -90,12 +93,12 @@ def run_boost(train, test, iterations):
         total_class_weight = sum(classifier_weights)
 
         for classifier_idx, classifier in enumerate(classifiers):
-            output, conf = classifier.classify(ex)
+            probs = classifier.predict_proba([ex.features])[0]
+            output = probs[0] < probs[1]
             vote += (classifier_weights[classifier_idx] / total_class_weight) * int(
                 output
             )
-
-            sum_conf += conf
+            sum_conf += max(probs)
 
         # Make the vote discrete
         vote = True if vote >= 0.5 else False
@@ -105,8 +108,8 @@ def run_boost(train, test, iterations):
 
         # Calculate outputs and matrix
         outputs.append((vote, total_conf))
-        is_correct = "t" if ex.label == output else "f"
-        is_positive = "p" if output else "n"
+        is_correct = "t" if ex.label == vote else "f"
+        is_positive = "p" if vote else "n"
         matrix[is_correct + is_positive] += 1
 
     return outputs, matrix

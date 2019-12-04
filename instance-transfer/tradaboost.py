@@ -3,11 +3,12 @@ import random
 import numpy as np
 import sys
 from data import collect_review_data
-from example import SentimentExample
+from example import Example
 from helpers import n_fold_cross_validation
-from dstump import DStump
+from sklearn.naive_bayes import MultinomialNB
 from stats import calculate_aroc, calculate_stats
 import matplotlib.pyplot as plt
+from typing import List
 
 
 def boost():
@@ -68,19 +69,19 @@ def run_boost(d_train, s_train, test, iterations):
         normalize_weights(s_train, d_train)
 
         print("Boost Iteration: {}".format(current_itr + 1))
-        classifiers.append(DStump())
+        classifiers.append(MultinomialNB())
 
         # randomly sample the training set with replacement
-        classifiers[-1].fit(d_train + s_train)
+        d_ftr, d_lbls, d_wghts = extract_ex_info(d_train)
+        s_ftr, s_lbls, s_wghts = extract_ex_info(s_train)
+        classifiers[-1].fit(d_ftr + s_ftr, d_lbls + s_lbls)
 
         # Extract weights and outputs
-        d_weights = [ex.weight for ex in d_train]
-        d_outputs = [[classifiers[-1].classify(ex)[0], ex.label] for ex in d_train]
-        s_weights = [ex.weight for ex in s_train]
-        s_outputs = [[classifiers[-1].classify(ex)[0], ex.label] for ex in s_train]
+        d_outputs = np.array(classifiers[-1].predict(d_ftr)) != d_lbls
+        s_outputs = np.array(classifiers[-1].predict(s_ftr)) != s_lbls
 
         # Calculate classifier error
-        error = weight_error(s_weights, s_outputs)
+        error = weight_error(s_wghts, s_outputs)
 
         if error >= 0.5 or error == 0.0:
             del classifiers[-1]
@@ -89,8 +90,8 @@ def run_boost(d_train, s_train, test, iterations):
         betas.append(error / (1 - error))
 
         # Update the weights
-        new_diff_weights = update_diff_weights(d_weights, d_outputs, beta)
-        new_same_weights = update_same_weights(s_weights, s_outputs, betas)
+        new_diff_weights = update_diff_weights(d_wghts, d_outputs, beta)
+        new_same_weights = update_same_weights(s_wghts, s_outputs, betas)
         for idx, ex in enumerate(d_train):
             ex.weight = new_diff_weights[idx]
         for idx, ex in enumerate(s_train):
@@ -107,13 +108,14 @@ def run_boost(d_train, s_train, test, iterations):
         vote = 0
         sum_conf = 0
 
-        use_itr = math.ceil(len(classifiers) / 2)
+        use_itr = math.floor(len(classifiers) / 2)
 
         for idx in range(use_itr, len(classifiers)):
-            output, conf = classifiers[idx].classify(ex)
+            probs = classifiers[idx].predict_proba([ex.features])[0]
+            output = int(probs[0] < probs[1])
             vote *= betas[idx] ** -output
 
-            sum_conf += conf
+            sum_conf += max(probs)
 
         # Make the vote discrete
         evaluated_betas = np.array(betas[use_itr:])
@@ -122,7 +124,7 @@ def run_boost(d_train, s_train, test, iterations):
         vote = True if vote >= boundary else False
 
         # Calculate confidence for given outcome
-        total_conf = sum_conf / len(classifiers)
+        total_conf = sum_conf / len(classifiers[use_itr:])
 
         # Calculate outputs and matrix
         outputs.append((vote, total_conf))
@@ -131,6 +133,14 @@ def run_boost(d_train, s_train, test, iterations):
         matrix[is_correct + is_positive] += 1
 
     return outputs, matrix
+
+
+def extract_ex_info(examples: List[Example]):
+    labels = [ex.label for ex in examples]
+    features = [ex.features for ex in examples]
+    weights = [ex.weight for ex in examples]
+
+    return features, labels, weights
 
 
 def normalize_weights(s_train, d_train, reset=False):
@@ -155,8 +165,7 @@ def weight_error(weights, output):
     """
     find the error of the weights
     """
-    clean_outputs = np.abs(np.diff(output)).flatten()
-    w_sum = np.sum(np.multiply(weights, clean_outputs))
+    w_sum = np.sum(np.multiply(weights, output))
     return w_sum / np.sum(weights)
 
 
@@ -164,9 +173,7 @@ def update_diff_weights(weights, output, beta):
     """
     updated the weights of the different domain
     """
-    output_sub = np.abs(np.diff(output)).flatten()
-    updated_weights = np.multiply(weights, beta ** output_sub)
-
+    updated_weights = np.multiply(weights, beta ** output)
     return updated_weights
 
 
@@ -174,9 +181,7 @@ def update_same_weights(weights, output, betas):
     """
     updated the weights of the data
     """
-    output_sub = np.abs(np.diff(output)).flatten().astype("float") * -1
-    updated_weights = np.multiply(weights, betas[-1] ** -output_sub)
-
+    updated_weights = np.multiply(weights, betas[-1] ** np.invert(output))
     return updated_weights
 
 
