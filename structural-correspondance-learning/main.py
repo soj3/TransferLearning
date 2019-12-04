@@ -1,10 +1,16 @@
 import data
 import argparse as argp
-from information_gain import calc_mutual_info
+import sklearn.decomposition as skd
+from pivot import *
+from classifier import *
+from utils import *
+import numpy as np
 
 
 LAMBDA = 1e-3
 MU = 1e-1
+NUM_PIVOTS = 500
+NUM_FEATURES = 5000
 
 
 def source_loss():
@@ -19,70 +25,61 @@ def alpha_dist():
     pass
 
 
-def select_pivots(labeled_source, unlabeled_source, unlabeled_target, source_vocab, target_vocab, num_pivots=1000):
-    # want to choose the num_pivots features with the highest mutual information gain to the source label
-    # sort the features according to how many times they occur in both the source and target domains
-    # then, choose the num_pivots features with the highest mutual info to the source label
+def scl(source, target):
+    print("Reading data...")
+    source_labeled, source_unlabeled, source_vocab = data.collect_review_data(source)
+    target_labeled, target_unlabeled, target_vocab = data.collect_review_data(target)
 
-    # criteria for pivots: occurs more than 50 times, occurs in more than 5 examples, occurs in both domains
-    pivots = []
-    potential_pivots = []
-    # from the unlabeled source and unlabeled target data, find features that fulfill these criteria
-    new_dict1 = {k: v for (k, v) in source_vocab if v > 50}
-    new_dict2 = {k: v for (k, v) in target_vocab if v > 50}
-    for key in new_dict1.keys():
-        if key in new_dict2.keys():
-            num_occ1, num_occ2 = 0, 0
-            for example in unlabeled_source:
-                if key in example.words.keys():
-                    num_occ1 += 1
-            for example in unlabeled_target:
-                if key in example.words.keys():
-                    num_occ2 += 1
-            if num_occ1 > 5 and num_occ2 > 5:
-                potential_pivots.append(key)
+    print("Selecting pivots...")
+    pivots = select_pivots(source_labeled, source_unlabeled, target_unlabeled, source_vocab, target_vocab, NUM_PIVOTS)
 
-    # create a dictionary containing the potential pivot features and their corresponding info gain to source
-    info = {}
-    for feature in potential_pivots:
-        info[feature] = calc_mutual_info(labeled_source, feature)
-    # sort according to mutual information
-    sorted_info = sorted(info.items(), key=lambda item: item[1], reverse=True)
+    # create a binary classifier for each pivot feature on the combined unlabeled data of the source and target
 
-    # add top num_pivots to pivot list
-    for i in range(num_pivots):
-        pivots.append(sorted_info[i][0])
+    unlabeled_data = source_unlabeled + target_unlabeled
+    merged_vocab = merge_list(source_vocab, target_vocab)
+    final_vocab = merge_pivots_and_vocab(merged_vocab[:NUM_FEATURES], pivots)
 
-    return pivots
+    print("Collecting pivot predictor weights...")
+    weights = get_pivot_predictor_weights(unlabeled_data, final_vocab[:NUM_FEATURES + 1], pivots)
 
+    # compute the Singular value decomposition of the weights matrix
+    print("Calculating SVD...")
+    weights = np.asmatrix(weights, dtype=float).transpose()
+    svd = skd.TruncatedSVD(n_components=25)
+    pivot_matrix = svd.fit_transform(weights)
 
+    print("Training classifiers...")
 
+    for ex in source_labeled:
+        ex.create_features(source_vocab[:NUM_FEATURES])
+    for ex in target_labeled:
+        ex.create_features(target_vocab[:NUM_FEATURES])
 
-def scl():
-    pass
+    train_source, train_source_labels, test_source, test_source_labels = split_data(source_labeled)
+    train_target, train_target_labels, test_target, test_target_labels = split_data(target_labeled)
+
+    classifiers = create_classifiers(pivot_matrix, train_source, train_source_labels, train_target, train_target_labels)
+
+    evaluate_classifiers(classifiers, test_source, test_source_labels, test_target, test_target_labels, pivot_matrix)
 
 
 def main():
-    ap = argp.ArgumentParser()
-    ap.add_argument("-s", "--source", required=True, help="Source domain")
-    ap.add_argument("-t", "--target", required=True, help="Target domain")
-    args = vars(ap.parse_args())
-    labeled_source, unlabeled_source, source_vocab = data.collect_review_data(args["source"])
-    _, unlabeled_target, target_vocab = data.collect_review_data(args["target"])
+    # ap = argp.ArgumentParser()
+    # ap.add_argument("-s", "--source", required=True, help="Source domain")
+    # ap.add_argument("-t", "--target", required=True, help="Target domain")
+    # args = vars(ap.parse_args())
 
+    scl("books", "dvd")
     # split source and target datasets into training and testing data
-    #baseline classifier
+    # baseline classifier
+
+    # classifier trained in domain
+
+    # classifiers trained on new domains
 
 
-    #classifier trained in domain
-
-    #classifiers trained on new domains
-
+if __name__ == "__main__":
+    main()
 
 
 
-source_labeled, source_unlabeled, source_vocab = data.collect_review_data("books")
-_, target_unlabeled, target_vocab = data.collect_review_data("dvd")
-
-pivots = select_pivots(source_labeled, source_unlabeled, target_unlabeled, source_vocab, target_vocab, num_pivots = 30)
-print(pivots)
