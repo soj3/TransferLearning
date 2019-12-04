@@ -31,6 +31,7 @@ def calculate_aroc(arr_of_confidence):
     sort_conf = sorted(arr_of_confidence, key=lambda conf: conf[1], reverse=True)
     total_positive = len([x for x in sort_conf if x[0]])
     total_negative = len(sort_conf) - total_positive
+
     roc_points = []
     fp, tp = 0, 0
     for label, confidence in sort_conf:

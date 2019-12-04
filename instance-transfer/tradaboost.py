@@ -17,11 +17,11 @@ def boost():
     """
 
     print("Collecting Data")
-    b_data, d_data, e_data, k_data = collect_review_data(100)
+    b_data, d_data, e_data, k_data = collect_review_data(10000)
     print("Finished Collecting Data")
 
     iterations = 20
-    percent_same_data = 0.20
+    percent_same_data = 0.10
 
     confused_matrix_bois = []
     confused_output_bois = []
@@ -105,7 +105,7 @@ def run_boost(d_train, s_train, test, iterations):
     # Run Testing
     for ex in test:
 
-        vote = 0
+        vote = 1.0
         sum_conf = 0
 
         use_itr = math.floor(len(classifiers) / 2)
@@ -113,6 +113,7 @@ def run_boost(d_train, s_train, test, iterations):
         for idx in range(use_itr, len(classifiers)):
             probs = classifiers[idx].predict_proba([ex.features])[0]
             output = int(probs[0] < probs[1])
+
             vote *= betas[idx] ** -output
 
             sum_conf += max(probs)
@@ -120,7 +121,6 @@ def run_boost(d_train, s_train, test, iterations):
         # Make the vote discrete
         evaluated_betas = np.array(betas[use_itr:])
         boundary = np.prod(evaluated_betas ** -0.5)
-
         vote = True if vote >= boundary else False
 
         # Calculate confidence for given outcome
@@ -128,8 +128,8 @@ def run_boost(d_train, s_train, test, iterations):
 
         # Calculate outputs and matrix
         outputs.append((vote, total_conf))
-        is_correct = "t" if ex.label == output else "f"
-        is_positive = "p" if output else "n"
+        is_correct = "t" if ex.label == vote else "f"
+        is_positive = "p" if vote else "n"
         matrix[is_correct + is_positive] += 1
 
     return outputs, matrix

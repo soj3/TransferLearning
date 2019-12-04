@@ -14,11 +14,11 @@ def boost():
     """
 
     print("Collecting Data")
-    b_data, d_data, e_data, k_data = collect_review_data(100)
+    b_data, d_data, e_data, k_data = collect_review_data(10000)
     print("Finished Collecting Data")
 
-    iterations = 100
-    percent_same_data = 0.20
+    iterations = 20
+    percent_same_data = 0.10
 
     confused_matrix_bois = []
     confused_output_bois = []
@@ -91,7 +91,7 @@ def run_boost(d_train_domains, s_train, test, iterations):
 
             # Calculate classifier error
             error = weight_error(s_wghts, s_outputs)
-            print(error)
+
             if error < best_error:
                 best_error = error
                 best_domain_classifier = clf
@@ -134,20 +134,21 @@ def run_boost(d_train_domains, s_train, test, iterations):
         for idx in range(len(classifiers)):
             probs = classifiers[idx].predict_proba([ex.features])[0]
             output = int(probs[0] < probs[1])
+
             vote += alphas[idx] * output
 
             sum_conf += max(probs)
 
         # Make the vote discrete
-        vote = True if vote >= 0 else False
+        vote = True if vote >= 0.5 else False
 
         # Calculate confidence for given outcome
         total_conf = sum_conf / len(classifiers)
 
         # Calculate outputs and matrix
         outputs.append((vote, total_conf))
-        is_correct = "t" if ex.label == output else "f"
-        is_positive = "p" if output else "n"
+        is_correct = "t" if ex.label == vote else "f"
+        is_positive = "p" if vote else "n"
         matrix[is_correct + is_positive] += 1
 
     return outputs, matrix
@@ -199,7 +200,7 @@ def update_diff_weights(weights, output, alpha):
     """
     updated the weights of the different domain
     """
-    updated_weights = np.multiply(weights, np.exp(output * -alpha))
+    updated_weights = np.multiply(weights, np.exp((-2 * alpha) * output))
 
     return updated_weights
 
@@ -208,7 +209,7 @@ def update_same_weights(weights, output, alphas):
     """
     updated the weights of the data
     """
-    updated_weights = np.multiply(weights, np.exp(output * alphas[-1]))
+    updated_weights = np.multiply(weights, np.exp(output * (-2 * alphas[-1])))
 
     return updated_weights
 
