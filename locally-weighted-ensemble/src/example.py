@@ -23,8 +23,16 @@ class Example(MutableSequence):
     def insert(self, key, value):
         return self.features.insert(key, value)
 
+    def __eq__(self, value):
+        return (
+            isinstance(value, Example)
+            and self.weight == value.weight
+            and self.label == value.label
+            and self.features == value.features
+        )
 
-e = Example(label=1, weight=1)
+    def __ne__(self, value):
+        return not self.__eq__(value)
 
 
 class SentimentExample(Example):

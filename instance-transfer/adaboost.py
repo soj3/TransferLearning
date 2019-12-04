@@ -5,7 +5,7 @@ import sys
 from data import collect_review_data
 from example import SentimentExample
 from helpers import n_fold_cross_validation
-from dstump import DStump
+from nbayes import nbayes
 from stats import calculate_aroc, calculate_stats
 import matplotlib.pyplot as plt
 
@@ -55,7 +55,7 @@ def run_boost(train, test, iterations):
     # run for the input number of iterations
     while current_itr < iterations:
         print("Boost Iteration: {}".format(current_itr + 1))
-        classifiers.append(DStump())
+        classifiers.append(nbayes())
 
         # randomly sample the training set with replacement
         classifiers[-1].fit(train)
