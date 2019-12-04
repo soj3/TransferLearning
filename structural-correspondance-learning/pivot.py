@@ -39,7 +39,7 @@ def select_pivots(labeled_source, unlabeled_source, unlabeled_target, source_voc
     return pivots
 
 
-def get_pivot_predictor_weights(data, vocab, pivots):
+def get_pivot_predictor_weights(data, vocab, pivots, NUM_FEATURES):
     weights = []
     j = 1
     # for each pivot, we create a classifier that predicts the likelihood of that pivot appearing in the example,
@@ -48,6 +48,8 @@ def get_pivot_predictor_weights(data, vocab, pivots):
         x = []
         y = []
         # remove the pivot from the vocabulary
+        keys = [k for k, _ in vocab]
+        assert pivot in keys
         temp_vocab = [(k, v) for (k, v) in vocab if k != pivot]
         # Here the class label is 1 or 0 depending on the appearance of the pivot in the example
         # maybe i should change this to -1 because we want the classifier to output a negative number if the
@@ -56,7 +58,7 @@ def get_pivot_predictor_weights(data, vocab, pivots):
             if pivot in data[i].words:
                 y.append(1)
             else:
-                y.append(0)
+                y.append(-1)
             data[i].create_features(temp_vocab)
             x.append(data[i].features)
         print("Training pivot predictor", j)
@@ -66,6 +68,7 @@ def get_pivot_predictor_weights(data, vocab, pivots):
         weight = []
         for i in classifier.coef_[0]:
             weight.append(i)
+        assert len(weight) == NUM_FEATURES
         weights.append(weight)
         j += 1
     return weights
