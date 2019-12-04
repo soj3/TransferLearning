@@ -145,8 +145,8 @@ class LogRegClassifier:
     def predict(self, features):
         predict_array = []
         for feature in features:
-            if np.dot(self.weights, features) > 0:
-                predict_array.append(1)
+            if np.dot(feature, self.weights) > 0:
+                predict_array.append(-1)
             else:
-                predict_array.append(0)
+                predict_array.append(1)
         return predict_array
