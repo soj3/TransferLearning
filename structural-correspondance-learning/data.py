@@ -53,7 +53,7 @@ def parse_line(line, vocab):
         words_dict[word] = count
 
     label = split[-1].split(":")[1][:-1]
-    bool_label = 1 if label == "positive" else 0
+    bool_label = 1 if label == "positive" else -1
     return SentimentExample(words_dict, bool_label)
 
 

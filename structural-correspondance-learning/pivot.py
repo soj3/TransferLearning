@@ -58,7 +58,7 @@ def get_pivot_predictor_weights(data, vocab, pivots, NUM_FEATURES):
             if pivot in data[i].words:
                 y.append(1)
             else:
-                y.append(0)
+                y.append(-1)
             data[i].create_features(temp_vocab)
             x.append(data[i].features)
         print("Training pivot predictor", j)
