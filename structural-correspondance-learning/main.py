@@ -69,7 +69,8 @@ def correct_misalignments(base_classifier, train_examples, train_labels, pivot_m
     weights = base_classifier.coef_[0]
     adapted_weights = weights[-SVD_DIMENSION-1:-1]
 
-    new_weights = spo.fmin(source_loss, weights,  args=(adapted_weights, adapted_examples, train_labels), maxiter=10000)
+    new_weights = spo.fmin(source_loss, weights,  args=(adapted_weights, adapted_examples, train_labels),
+                           maxiter=10000)
     new_classifier = LogRegClassifier(new_weights)
     return new_classifier
 
@@ -89,11 +90,16 @@ def scl(source, target):
     # create a binary classifier for each pivot feature on the combined unlabeled data of the source and target
 
     unlabeled_data = source_unlabeled + target_unlabeled
+    binary_data = deepcopy(unlabeled_data[:2500])
+    for ex in binary_data:
+        for i in range(len(ex.features)):
+            if ex.features[i] > 1:
+                ex.features[i] = 1
+            else:
+                ex.features[i] = 0
     merged_vocab = merge_list(source_vocab, target_vocab)
-    final_vocab = merge_pivots_and_vocab(merged_vocab, pivots, NUM_FEATURES)
-    final_vocab = merge_pivots_and_vocab(final_vocab[:NUM_FEATURES + NUM_PIVOTS], pivots, NUM_FEATURES)
     print("Collecting pivot predictor weights...")
-    weights = get_pivot_predictor_weights(unlabeled_data, final_vocab[:NUM_FEATURES], pivots, NUM_FEATURES-1)
+    weights, final_vocab = get_pivot_predictor_weights(binary_data, merged_vocab, pivots, NUM_FEATURES)
 
     # compute the Singular value decomposition of the weights matrix
     print("Calculating SVD...")
@@ -107,9 +113,9 @@ def scl(source, target):
     print("Training classifiers...")
 
     for ex in source_labeled:
-        ex.create_features(source_vocab[:NUM_FEATURES-1])
+        ex.create_features(final_vocab)
     for ex in target_labeled:
-        ex.create_features(target_vocab[:NUM_FEATURES-1])
+        ex.create_features(final_vocab)
 
     train_source, train_source_labels, test_source, test_source_labels = split_data(source_labeled)
     train_target, train_target_labels, test_target, test_target_labels = split_data(target_labeled)
@@ -133,8 +139,8 @@ def main():
     # ap.add_argument("-t", "--target", required=True, help="Target domain")
     # args = vars(ap.parse_args())
 
-    scl("books", "dvd")
-    # scl("books", "kitchen")
+    #scl("books", "dvd")
+    scl("books", "kitchen")
     # scl("books", "electronics")
     # scl("dvd", "electronics")
     # scl("dvd", "kitchen")
