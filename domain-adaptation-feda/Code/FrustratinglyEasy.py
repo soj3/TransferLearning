@@ -65,6 +65,25 @@ def read_data_sentiment(filename):
             features.append(example_features)
     return features, labels, all_features
 
+def read_data_newsgroup(filename_data,filename_labels):
+    features= []
+    labels = []
+    all_features = {}
+    with open(filename_data) as f:
+        for line in f:
+            example = line.strip().split(' ')
+            example_features = {}
+            if example[-1] == '#label#:positive':
+                labels.append(1)
+            else:
+                labels.append(-1)
+            for j in range(len(example)-1):
+                word, freq = example[j].split(':')
+                example_features[word] = int(freq)
+                all_features[word] = int(freq)
+            features.append(example_features)
+    return features, labels, all_features
+
 
 def read_data_spam(filename):
     features = []
