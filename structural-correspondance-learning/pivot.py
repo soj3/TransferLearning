@@ -22,7 +22,7 @@ def select_pivots(labeled_source, unlabeled_source, unlabeled_target, source_voc
             for example in unlabeled_target:
                 if key in example.words.keys():
                     num_occ2 += 1
-            if num_occ1 > 5 and num_occ2 > 5:
+            if num_occ1 > 50 and num_occ2 > 50:
                 potential_pivots.append(key)
 
     # create a dictionary containing the potential pivot features and their corresponding info gain to source
