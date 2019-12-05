@@ -1,0 +1,24 @@
+trainCompleteBinary contains postings from newsgroups 
+
+comp.graphics 2
+comp.os.ms-windows.misc 3
+comp.sys.ibm.pc.hardware 4
+comp.sys.mac.hardware 5
+
+and 
+
+sci.crypt 12
+sci.electronics 13
+sci.med 14
+
+With comp newsgroups labeled with 1 and sci labeled with -1
+
+trainCompleteBinary contains postings from newsgroups 
+
+comp.windows.x 6
+
+and
+
+sci.space 15
+
+labeled the same way

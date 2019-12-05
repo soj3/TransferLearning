@@ -22,7 +22,7 @@ def select_pivots(labeled_source, unlabeled_source, unlabeled_target, source_voc
             for example in unlabeled_target:
                 if key in example.words.keys():
                     num_occ2 += 1
-            if num_occ1 > 5 and num_occ2 > 5:
+            if num_occ1 > 50 and num_occ2 > 50:
                 potential_pivots.append(key)
 
     # create a dictionary containing the potential pivot features and their corresponding info gain to source
@@ -44,31 +44,37 @@ def get_pivot_predictor_weights(data, vocab, pivots, NUM_FEATURES):
     j = 1
     # for each pivot, we create a classifier that predicts the likelihood of that pivot appearing in the example,
     # given all of the other features (i.e. words) of the example
+    pivot_labels = []
+    # remove pivots from vocab, but retain whether or not they occurred in each example
     for pivot in pivots:
-        x = []
         y = []
-        # remove the pivot from the vocabulary
-        keys = [k for k, _ in vocab]
-        assert pivot in keys
-        temp_vocab = [(k, v) for (k, v) in vocab if k != pivot]
-        # Here the class label is 1 or 0 depending on the appearance of the pivot in the example
-        # maybe i should change this to -1 because we want the classifier to output a negative number if the
-        # pivot is not there?
+        vocab = [(k, v) for (k,v) in vocab if k != pivot]
         for i in range(len(data)):
             if pivot in data[i].words:
                 y.append(1)
             else:
                 y.append(-1)
-            data[i].create_features(temp_vocab)
+        pivot_labels.append(y)
+
+    for i in range(len(pivots)):
+        keys = [k for k, _ in vocab]
+        assert pivots[i] not in keys
+        x = []
+        labels = pivot_labels[i]
+        # Here the class label is 1 or 0 depending on the appearance of the pivot in the example
+        # maybe i should change this to -1 because we want the classifier to output a negative number if the
+        # pivot is not there?
+        for i in range(len(data)):
+            data[i].create_features(vocab[:NUM_FEATURES])
             x.append(data[i].features)
         print("Training pivot predictor", j)
         # train a Stochastic gradient descent classifier using the modified Huber loss function
         classifier = model.SGDClassifier(loss="modified_huber")
-        classifier.fit(x, y)
+        classifier.fit(x, labels)
         weight = []
-        for i in classifier.coef_[0]:
-            weight.append(i)
+        for l in classifier.coef_[0]:
+            weight.append(l)
         assert len(weight) == NUM_FEATURES
         weights.append(weight)
         j += 1
-    return weights
+    return weights, vocab[:NUM_FEATURES]
