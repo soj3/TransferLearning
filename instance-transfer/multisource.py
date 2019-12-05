@@ -6,19 +6,17 @@ from sklearn.naive_bayes import MultinomialNB
 from helpers import n_fold_cross_validation
 from stats import calculate_aroc, calculate_stats
 from typing import List
+import argparse
 
 
-def boost():
+def boost(iterations, percent, features):
     """
     initialize Boost
     """
 
     print("Collecting Data")
-    b_data, d_data, e_data, k_data = collect_review_data(10000)
+    b_data, d_data, e_data, k_data = collect_review_data(features)
     print("Finished Collecting Data")
-
-    iterations = 20
-    percent_same_data = 0.10
 
     confused_matrix_bois = []
     confused_output_bois = []
@@ -28,6 +26,7 @@ def boost():
     e_data_folds = n_fold_cross_validation(e_data)
     k_data_folds = n_fold_cross_validation(k_data)
 
+    # Domains
     d_domains = [k_data_folds, e_data_folds, b_data_folds]
     s_domain = d_data_folds
 
@@ -38,7 +37,7 @@ def boost():
         for d_domain in d_domains:
             d_train_domains.append(d_domain[idx][0])
 
-        num_same_data = int(len(s_domain[idx][0]) * percent_same_data)
+        num_same_data = int(len(s_domain[idx][0]) * percent)
         s_train = s_domain[idx][0][:num_same_data]
 
         test = s_domain[idx][1]
@@ -48,6 +47,7 @@ def boost():
                 len(d_train_domains), len(s_train)
             )
         )
+
         output, matrix = run_boost(d_train_domains, s_train, test, iterations)
         confused_matrix_bois.append(matrix)
         confused_output_bois += output
@@ -64,6 +64,12 @@ def run_boost(d_train_domains, s_train, test, iterations):
     alphas = []
     diff_exs = sum([len(d_train) for d_train in d_train_domains])
     alpha = 0.5 * math.log(1 + math.sqrt(2 * math.log(diff_exs / iterations)))
+
+    linear = (len(s_train) * 100) / diff_exs
+    squared = ((len(s_train) ** 2) * 100) / diff_exs
+
+    multi_param = 1
+    exp_param = 1
 
     current_itr = 0
 
@@ -109,14 +115,18 @@ def run_boost(d_train_domains, s_train, test, iterations):
             d_ftr, d_lbls, d_wghts = extract_ex_info(d_train)
             d_outputs = np.array(classifiers[-1].predict(d_ftr)) != d_lbls
 
-            new_diff_weights = update_diff_weights(d_wghts, d_outputs, alpha)
+            new_diff_weights = update_diff_weights(
+                d_wghts, d_outputs, alpha, multi_param, exp_param
+            )
             for idx, ex in enumerate(d_train):
                 ex.weight = new_diff_weights[idx]
 
         # Update the weights for the same domain
         s_outputs = np.array(classifiers[-1].predict(s_ftr)) != s_lbls
 
-        new_same_weights = update_same_weights(s_wghts, s_outputs, alphas)
+        new_same_weights = update_same_weights(
+            s_wghts, s_outputs, alphas, multi_param, exp_param
+        )
         for idx, ex in enumerate(s_train):
             ex.weight = new_same_weights[idx]
 
@@ -196,23 +206,56 @@ def weight_error(weights, output):
     return w_sum / np.sum(weights)
 
 
-def update_diff_weights(weights, output, alpha):
+def update_diff_weights(weights, output, alpha, multi_param, exp_param):
     """
     updated the weights of the different domain
     """
-    updated_weights = np.multiply(weights, np.exp((-2 * alpha) * output))
+    updated_weights = multi_param * np.multiply(
+        weights, np.exp((-2 * multi_param * alpha) * output)
+    )
 
     return updated_weights
 
 
-def update_same_weights(weights, output, alphas):
+def update_same_weights(weights, output, alphas, multi_param, exp_param):
     """
     updated the weights of the data
     """
-    updated_weights = np.multiply(weights, np.exp(output * (-2 * alphas[-1])))
+    updated_weights = multi_param * np.multiply(
+        weights, np.exp(output * (2 * exp_param * alphas[-1]))
+    )
 
     return updated_weights
 
 
 if __name__ == "__main__":
-    boost()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-i", "--iterations", help="Number of iterations to run boosting", type=int
+    )
+    parser.add_argument(
+        "-p", "--percent", help="Percent of target data to use in training", type=float
+    )
+    parser.add_argument(
+        "-f", "--features", help="Number of features the vocab should use", type=int
+    )
+
+    args = parser.parse_args()
+
+    if args.iterations:
+        iterations = args.iterations
+    else:
+        iterations = 20
+
+    if args.percent:
+        percent = args.percent
+    else:
+        percent = 0.2
+
+    if args.features:
+        features = args.features
+    else:
+        features = 500
+
+    boost(iterations, percent, features)
+

@@ -9,19 +9,17 @@ from sklearn.naive_bayes import MultinomialNB
 from stats import calculate_aroc, calculate_stats
 import matplotlib.pyplot as plt
 from typing import List
+import argparse
 
 
-def boost():
+def boost(iterations, percent, features):
     """
     initialize Boost
     """
 
     print("Collecting Data")
-    b_data, d_data, e_data, k_data = collect_review_data(10000)
+    b_data, d_data, e_data, k_data = collect_review_data(features)
     print("Finished Collecting Data")
-
-    iterations = 20
-    percent_same_data = 0.10
 
     confused_matrix_bois = []
     confused_output_bois = []
@@ -38,7 +36,7 @@ def boost():
         print("Running Fold {}".format(idx + 1))
 
         d_train = d_domain[idx][0]
-        num_same_data = int(len(s_domain[idx][0]) * percent_same_data)
+        num_same_data = int(len(s_domain[idx][0]) * percent)
         s_train = s_domain[idx][0][:num_same_data]
         test = s_domain[idx][1]
         print(
@@ -186,4 +184,32 @@ def update_same_weights(weights, output, betas):
 
 
 if __name__ == "__main__":
-    boost()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-i", "--iterations", help="Number of iterations to run boosting", type=int
+    )
+    parser.add_argument(
+        "-p", "--percent", help="Percent of target data to use in training", type=float
+    )
+    parser.add_argument(
+        "-f", "--features", help="Number of features the vocab should use", type=int
+    )
+
+    args = parser.parse_args()
+
+    if args.iterations:
+        iterations = args.iterations
+    else:
+        iterations = 20
+
+    if args.percent:
+        percent = args.percent
+    else:
+        percent = 0.2
+
+    if args.features:
+        features = args.features
+    else:
+        features = 500
+
+    boost(iterations, percent, features)

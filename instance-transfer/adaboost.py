@@ -10,16 +10,14 @@ from stats import calculate_aroc, calculate_stats
 import matplotlib.pyplot as plt
 
 
-def boost():
+def boost(iterations, features):
     """
     initialize Boost
     """
 
     print("Collecting Data")
-    b_data, d_data, e_data, k_data = collect_review_data(10000)
+    b_data, d_data, e_data, k_data = collect_review_data(features)
     print("Finished Collecting Data")
-
-    iterations = 20
 
     confused_matrix_bois = []
     confused_output_bois = []
@@ -143,4 +141,24 @@ def update_weights(weights, output, alpha):
 
 
 if __name__ == "__main__":
-    boost()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-i", "--iterations", help="Number of iterations to run boosting", type=int
+    )
+    parser.add_argument(
+        "-f", "--features", help="Number of features the vocab should use", type=int
+    )
+
+    args = parser.parse_args()
+
+    if args.iterations:
+        iterations = args.iterations
+    else:
+        iterations = 20
+
+    if args.features:
+        features = args.features
+    else:
+        features = 500
+
+    boost(iterations, features)
