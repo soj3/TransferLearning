@@ -4,8 +4,26 @@ from typing import List
 
 current_folder = dirname(abspath(__file__))
 data_folder = join(dirname(current_folder), "data-sets")
+
+# Folders
 acl_folder = join(data_folder, "processed_acl")
 
+task_a_lab_folder = join(data_folder, "task_a_label")
+task_b_lab_folder = join(data_folder, "task_b_label")
+
+data_task_a_folder = join(data_folder, "data_task_a")
+data_task_b_folder = join(data_folder, "data_task_b")
+
+
+def collect_spam_a_data(num_features=3000):
+    domains = [
+        "task_a_u00_eval_lab.tf",
+        "task_a_u01_eval_lab.tf",
+        "task_a_u02_eval_lab.tf",
+    ]
+
+def collect_newsgroup_data(num_features=3000):
+    
 
 def collect_review_data(num_features=3000):
     domains = ["books", "dvd", "electronics", "kitchen"]
