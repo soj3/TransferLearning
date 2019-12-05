@@ -12,12 +12,14 @@ def merge_list(list1, list2):
     return list(dict3.items())
 
 
-def merge_pivots_and_vocab(vocab, pivots):
-    keys = {k for k, _ in vocab}
+def merge_pivots_and_vocab(vocab, pivots, NUM_FEATURES):
+    keys = [k for k, _ in vocab]
     for pivot in pivots:
-        if pivot not in keys:
+        if pivot not in keys[:NUM_FEATURES]:
             vocab.insert(0, (pivot, 50))
-            keys.add(pivot)
+    keys = [k for k, _ in vocab]
+    for pivot in pivots:
+        assert pivot in keys
     return vocab
 
 
