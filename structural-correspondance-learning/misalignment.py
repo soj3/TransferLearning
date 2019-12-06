@@ -1,7 +1,7 @@
 from copy import deepcopy
 import numpy as np
-#from main import NUM_PIVOTS
-#from main import SVD_DIMENSION
+
+
 from classifier import LogRegClassifier
 import scipy.optimize as spo
 

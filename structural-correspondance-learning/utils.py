@@ -1,4 +1,5 @@
 import random
+from sklearn.feature_extraction.text import CountVectorizer
 random.seed(12345)
 
 
@@ -58,3 +59,34 @@ def split_data(pos, neg):
         test_labels.append(0)
 
     return train_examples, train_labels, test_examples, test_labels
+
+
+def get_dicts_and_train_sets(train_source, train_and_unlabeled, unlabeled, target_un):
+    dicts = []
+    train_sets = []
+
+    dict1 = CountVectorizer(binary=True, min_df=5)
+    x_train = dict1.fit_transform(train_source).toarray()
+
+    dicts.append(dict1)
+    train_sets.append(x_train)
+
+    source_dict = CountVectorizer(binary=True, min_df=20)
+    x_train_source = source_dict.fit_transform(train_and_unlabeled).toarray()
+
+    dicts.append(source_dict)
+    train_sets.append(x_train_source)
+
+    unlabeled_dict = CountVectorizer(binary=True, min_df=40)
+    x_train_unlabeled = unlabeled_dict.fit_transform(unlabeled).toarray()
+
+    dicts.append(unlabeled_dict)
+    train_sets.append(x_train_unlabeled)
+
+    target_dict = CountVectorizer(binary=True, min_df=20)
+    x_train_target = target_dict.fit_transform(target_un).toarray()
+
+    dicts.append(target_dict)
+    train_sets.append(x_train_target)
+
+    return dicts, train_sets

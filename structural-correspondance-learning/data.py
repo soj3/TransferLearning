@@ -1,11 +1,11 @@
 from os.path import dirname, abspath, join
-from example import SentimentExample
 from sklearn.feature_extraction.text import CountVectorizer
 
 
 current_folder = dirname(abspath(__file__))
 data_folder = join(dirname(current_folder), "data-sets")
 acl_folder = join(data_folder, "processed_acl")
+
 
 def parse_line(line):
     split = line.split(" ")
