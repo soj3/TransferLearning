@@ -15,7 +15,7 @@ def select_pivots(dicts, train_sets, labels):
     # get the pivots with the highest info gain that appear at minimum MIN_PIVOT_APPEARANCE times
     pivots = []
     pivot_appearances = []
-    for i in range(NUM_PIVOTS * 5):
+    for i in range(min(len(dicts[2].get_feature_names()), len(sorted_words))):
 
         source_count = sum(train_sets[1][:, dicts[1].get_feature_names().index(sorted_words[i])
                                          if sorted_words[i] in dicts[1].get_feature_names() else 0])
