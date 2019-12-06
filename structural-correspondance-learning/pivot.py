@@ -36,7 +36,7 @@ def get_pivot_predictor_weights(non_pivot_feature_matrix, pivot_appearance_matri
     # for each pivot, we create a classifier that predicts the likelihood of that pivot appearing in the example,
     # given all of the other features (i.e. words) of the example
     for i in range(NUM_PIVOTS):
-        print("Training pivot predictor", j)
+        print("Training pivot predictor " + str(j) + "...")
         # train a Stochastic gradient descent classifier using the modified Huber loss function
         classifier = model.SGDClassifier(loss="modified_huber")
         classifier.fit(non_pivot_feature_matrix, pivot_appearance_matrix[:, i])
