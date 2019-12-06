@@ -13,13 +13,22 @@ from example import Example, SentimentExample
 n_clusters = 2
 
 
+def score(y, y_hat):
+    if len(y) > 0:
+        return sum(
+            int(actual == predicted) for actual, predicted in zip(y, y_hat)
+        ) / len(y)
+    else:
+        raise ValueError
+
+
 def lwe(
     train: List[List[Example]],
     models: List[Union[LogisticRegression, SVC]],
     test: List[Example],
     threshold: float,
     clusters: int = n_clusters,
-) -> List[Tuple[Example, float]]:
+) -> List[int]:
     """
     Locally Weighted Ensembling Implementation (Gao et. al)
     Parameters:
@@ -68,7 +77,7 @@ def lwe(
                 outputs[x] = sum(
                     [
                         local_weights[model] * model.predict_proba([x])[-1][-1]
-                        for weight, model in zip(weights, models)
+                        for model in models
                     ]
                 )
             else:
@@ -106,9 +115,10 @@ def s(gm: Graph, gt: Graph, x: Example) -> float:
     """
     gm_neighbors = set(gm.neighbors(x))
     gt_neighbors = set(gt.neighbors(x))
-
-    # return the ratio of intersection and union cardinalities
-    return len(gm_neighbors & gt_neighbors) / len(gm_neighbors | gt_neighbors)
+    intersect = len(gm_neighbors & gt_neighbors)
+    union = len(gm_neighbors | gt_neighbors)
+    assert union != 0
+    return intersect / union
 
 
 def generate_neighborhood(
@@ -132,18 +142,22 @@ def generate_neighborhood(
     gm.add_nodes_from(data)
     gt.add_nodes_from(data)
 
-    model_predictions = model.predict(data)
-    preds = zip(data, model_predictions, cluster_predictions)
-    for u, m1, c1 in preds:
-        for v, m2, c2 in preds:
-            if u is not v:
-                # if the examples have the same predicted output from the model on the test set, add a connecting edge in gm
-                if m1 == m2:
-                    gm.add_edge(u, v)
+    assert len(data) == len(cluster_predictions)
+    for i, u in enumerate(data):
+        for j, v in enumerate(data):
+            # if u == v:
+            #     continue
+            m1 = model.predict([u])[-1]
+            m2 = model.predict([v])[-1]
+            c1 = cluster_predictions[i]
+            c2 = cluster_predictions[j]
+            # if the examples have the same predicted output from the model on the test set, add a connecting edge in gm
+            if m1 == m2:
+                gm.add_edge(u, v)
 
-                # if the examples are members of the same cluster on the test set, add a connecting edge in gt
-                if c1 == c2:
-                    gt.add_edge(u, v)
+            # if the examples are members of the same cluster on the test set, add a connecting edge in gt
+            if c1 == c2:
+                gt.add_edge(u, v)
     return model, gm, gt
 
 
