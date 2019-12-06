@@ -1,6 +1,6 @@
 import math
 import numpy as np
-from data import collect_review_data
+from data import *
 from example import Example
 from sklearn.naive_bayes import MultinomialNB
 from helpers import n_fold_cross_validation
@@ -15,20 +15,37 @@ def boost(iterations, percent, features):
     """
 
     print("Collecting Data")
-    b_data, d_data, e_data, k_data = collect_review_data(features)
+
+    # Review Data
+    # b_data, d_data, e_data, k_data = collect_review_data(features)
+    # b_data_folds = n_fold_cross_validation(b_data)
+    # d_data_folds = n_fold_cross_validation(d_data)
+    # e_data_folds = n_fold_cross_validation(e_data)
+    # k_data_folds = n_fold_cross_validation(k_data)
+
+    # Spam Task A Data
+    sp1, sp2, sp3 = collect_spam_a_data(features)
+    sp1_data_folds = n_fold_cross_validation(sp1)
+    sp2_data_folds = n_fold_cross_validation(sp2)
+    sp3_data_folds = n_fold_cross_validation(sp3)
+
+    # Spam Task B Data
+    # sps15 = collect_spam_b_data(features)
+    # sps15_folds = [n_fold_cross_validation(f) for f in sps15]
+
+    # Spam News Group
+    # nws1, nws2 = collect_newsgroup_data(features)
+    # nws1_data_folds = n_fold_cross_validation(nws1)
+    # nws2_data_folds = n_fold_cross_validation(nws2)
+
     print("Finished Collecting Data")
 
     confused_matrix_bois = []
     confused_output_bois = []
 
-    b_data_folds = n_fold_cross_validation(b_data)
-    d_data_folds = n_fold_cross_validation(d_data)
-    e_data_folds = n_fold_cross_validation(e_data)
-    k_data_folds = n_fold_cross_validation(k_data)
-
     # Domains
-    d_domains = [k_data_folds, e_data_folds, b_data_folds]
-    s_domain = d_data_folds
+    d_domains = [sp1_data_folds, sp2_data_folds]
+    s_domain = sp3_data_folds
 
     for idx in range(len(s_domain)):
         print("Running Fold {}".format(idx + 1))
@@ -139,7 +156,7 @@ def run_boost(d_train_domains, s_train, test, iterations):
     for ex in test:
 
         vote = 0
-        sum_conf = 0
+        conf = 0
 
         for idx in range(len(classifiers)):
             probs = classifiers[idx].predict_proba([ex.features])[0]
@@ -147,16 +164,13 @@ def run_boost(d_train_domains, s_train, test, iterations):
 
             vote += alphas[idx] * output
 
-            sum_conf += max(probs)
+            conf += alphas[idx] * probs[1]
 
         # Make the vote discrete
         vote = True if vote >= 0.5 else False
 
-        # Calculate confidence for given outcome
-        total_conf = sum_conf / len(classifiers)
-
         # Calculate outputs and matrix
-        outputs.append((vote, total_conf))
+        outputs.append((ex.label, conf))
         is_correct = "t" if ex.label == vote else "f"
         is_positive = "p" if vote else "n"
         matrix[is_correct + is_positive] += 1
