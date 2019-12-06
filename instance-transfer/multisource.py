@@ -225,7 +225,7 @@ def update_diff_weights(weights, output, alpha, multi_param, exp_param):
     updated the weights of the different domain
     """
     updated_weights = multi_param * np.multiply(
-        weights, np.exp((-2 * multi_param * alpha) * output)
+        weights, np.exp((-2 * exp_param * alpha) * output)
     )
 
     return updated_weights
