@@ -1,4 +1,5 @@
 import random
+from sklearn.feature_extraction.text import CountVectorizer
 random.seed(12345)
 
 
@@ -23,46 +24,75 @@ def merge_pivots_and_vocab(vocab, pivots, NUM_FEATURES):
     return vocab
 
 
-def split_data(data):
-    train_features, train_labels, test_features, test_labels = [], [], [], []
+def split_data(pos, neg, num_folds, examples_per_fold):
 
-    pos, neg = [], []
-    for ex in data:
-        (pos if ex.label == 1 else neg).append(ex)
-
-    pos_proportion = len(pos)/(len(pos) + len(neg))
+    data_len = len(pos) + len(neg)
+    pos_proportion = len(pos)/data_len
     neg_proportion = 1 - pos_proportion
+    data_folds = []
+    data_fold_labels = []
+    for i in range(num_folds):
+        fold = []
+        fold_labels = []
+        num_pos = int(pos_proportion * examples_per_fold)
+        num_neg = int(neg_proportion * examples_per_fold)
 
-    num_pos_train = int(pos_proportion * 1600)
-    num_neg_train = int(neg_proportion * 1600)
+        random.shuffle(pos)
+        random.shuffle(neg)
 
-    num_pos_test = int(pos_proportion * 400)
-    num_neg_test = int(neg_proportion * 400)
+        for j in range(num_pos):
+            fold.append(pos.pop())
+            fold_labels.append(1)
 
-    train_examples = []
-    test_examples = []
+        for j in range(num_neg):
+            fold.append(neg.pop())
+            fold_labels.append(-1)
 
-    random.shuffle(pos)
-    random.shuffle(neg)
+        data_folds.append(fold)
+        data_fold_labels.append(fold_labels)
 
-    for i in range(num_pos_train):
-        train_examples.append(pos.pop())
+    return data_folds, data_fold_labels
 
-    for i in range(num_neg_train):
-        train_examples.append(neg.pop())
 
-    for i in range(num_pos_test):
-        test_examples.append(pos.pop())
+def get_dicts_and_train_sets(train_source, train_and_unlabeled, unlabeled, target_un):
+    dicts = []
+    train_sets = []
 
-    for i in range(num_neg_test):
-        test_examples.append(neg.pop())
+    dict1 = CountVectorizer(binary=True, min_df=30)
+    x_train = dict1.fit_transform(train_source).toarray()
 
-    for ex in train_examples:
-        train_features.append(ex.features)
-        train_labels.append(ex.label)
+    dicts.append(dict1)
+    train_sets.append(x_train)
 
-    for ex in test_examples:
-        test_features.append(ex.features)
-        test_labels.append(ex.label)
+    source_dict = CountVectorizer(binary=True, min_df=30)
+    x_train_source = source_dict.fit_transform(train_and_unlabeled).toarray()
 
-    return train_features, train_labels, test_features, test_labels
+    dicts.append(source_dict)
+    train_sets.append(x_train_source)
+
+    unlabeled_dict = CountVectorizer(binary=True, min_df=30)
+    x_train_unlabeled = unlabeled_dict.fit_transform(unlabeled).toarray()
+
+    dicts.append(unlabeled_dict)
+    train_sets.append(x_train_unlabeled)
+
+    target_dict = CountVectorizer(binary=True, min_df=30)
+    x_train_target = target_dict.fit_transform(target_un).toarray()
+
+    dicts.append(target_dict)
+    train_sets.append(x_train_target)
+
+    return dicts, train_sets
+
+
+def huber_loss(predictions, actual):
+    loss = 0
+    assert len(predictions) == len(actual)
+    for i in range(len(predictions)):
+        if predictions[i] * actual[i] >= -1:
+            loss += max(0, 1 - predictions[i] * actual[i]) ** 2
+        else:
+            loss += -4 * predictions[i] * actual[i]
+
+    return loss
+
