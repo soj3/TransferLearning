@@ -30,8 +30,19 @@ def rewrite_with_labels(filename, labels, newName):
     for i in range(len(examples)):
         line = examples[i].strip()
         label = labels[i].strip()
-        newfile.write(line + ' ' + label)
+        newfile.write(label + ' ' + line)
         newfile.write('\n')
+
+
+def binarize(filename,newName):
+    newfile = open(newName,"w+")
+    with open(filename) as f:
+        examples = f.readlines()
+    for i in range(len(examples)):
+        line = examples[i].strip().split(' ')
+        if (line[-1] == '4') | (line[-1] == '5'):
+            newfile.write(examples[i])
+            newfile.write('\n')
 # rewrite_data_newsgroup('20news-bydate/matlab/train.data')
-# rewrite_with_labels('20news-bydate/matlab/reformedTrainData.txt','20news-bydate/matlab/train.label','20news-bydate/matlab/trainComplete.txt')
+rewrite_with_labels('20news-bydate/matlab/reformedTrainData.txt','20news-bydate/matlab/train.label','20news-bydate/matlab/trainComplete.txt')
 rewrite_with_labels('20news-bydate/matlab/reformedTestData.txt','20news-bydate/matlab/test.label','20news-bydate/matlab/testComplete.txt')

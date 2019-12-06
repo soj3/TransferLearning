@@ -10,7 +10,7 @@ np.set_printoptions(threshold=50)
 # A. Size of the sample that we take as "labeled" from the target domain
 # B. THe number of tests we want to run
 test_size = 100
-n = 50
+n = 5
 # For the amazon dataset, what are the source and target domains
 src = 'dvd'
 tgt = 'kitchen'
@@ -41,6 +41,11 @@ def load_data_spam():
     tgt_features, tgt_labels , a = read_data_spam('evaluation_data_labeled/task_a_lab/task_a_u01_eval_lab.tf')
     return src_features, src_labels, tgt_features, tgt_labels
 
+def load_data_newsgroup():
+    src_features, src_labels , a = read_data_newsgroup('20news-bydate/matlab/trainCompletevBinary.txt')
+    tgt_features, tgt_labels , a = read_data_newsgroup('20news-bydate/matlab/testCompletevBinary.txt')
+    return src_features, src_labels, tgt_features, tgt_labels
+
 def load_data_test():
     src_features, src_labels , a = read_data_spam('evaluation_data_labeled/task_a_lab/test1.tf')
     tgt_features, tgt_labels , a = read_data_spam('evaluation_data_labeled/task_a_lab/test2.tf')
@@ -65,15 +70,16 @@ def read_data_sentiment(filename):
             features.append(example_features)
     return features, labels, all_features
 
-def read_data_newsgroup(filename_data,filename_labels):
+def read_data_newsgroup(filename):
     features= []
     labels = []
     all_features = {}
-    with open(filename_data) as f:
+    with open(filename) as f:
         for line in f:
             example = line.strip().split(' ')
+            # print(example)
             example_features = {}
-            if example[-1] == '#label#:positive':
+            if example[-1] == '1':
                 labels.append(1)
             else:
                 labels.append(-1)
@@ -237,8 +243,31 @@ def training_samples(tgt_features, tgt_labels, test_size):
 # src_features, tgt_features = prepreprocess_data(src_features, tgt_features, 10000)
 
 
-src_features, src_labels, tgt_features, tgt_labels = load_data_sent(src, tgt)
+src_features, src_labels, tgt_features, tgt_labels = load_data_newsgroup()
 
+src_features, tgt_features = prepreprocess_data(src_features, tgt_features, 10000)
+
+print('newsgroup using {} labeled target examples'.format(test_size))
+f_svm = []
+t_svm = []
+a_svm = []
+
+for i in range(0, n):
+    eval_features, train_features, eval_labels, train_labels = training_samples(tgt_features, tgt_labels,test_size=test_size)
+    f_svm.append(feda_svm(src_features, src_labels, eval_features, train_features, eval_labels, train_labels))
+    t_svm.append(tgt_learner_svm(src_features, src_labels, eval_features, train_features, eval_labels, train_labels))
+    a_svm.append(all_learner_svm(src_features, src_labels, eval_features, train_features, eval_labels, train_labels))
+print('SVM FEDA:', f_svm)
+print(np.average(f_svm))
+print(np.std(f_svm))
+print('SVM All:', a_svm)
+print(np.average(a_svm))
+print(np.std(a_svm))
+print('SVM Target:', t_svm)
+print(np.average(t_svm))
+print(np.std(t_svm))
+
+src_features, src_labels, tgt_features, tgt_labels = load_data_sent(src, tgt)
 
 src_features, tgt_features = prepreprocess_data(src_features, tgt_features, 10000)
 
@@ -299,3 +328,6 @@ print(np.std(a_svm))
 print('SVM Target:', t_svm)
 print(np.average(t_svm))
 print(np.std(t_svm))
+
+
+

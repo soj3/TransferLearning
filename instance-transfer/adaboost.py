@@ -2,7 +2,8 @@ import math
 import random
 import numpy as np
 import sys
-from data import collect_review_data
+from data import *
+import argparse
 from example import SentimentExample
 from helpers import n_fold_cross_validation
 from sklearn.naive_bayes import MultinomialNB
@@ -10,28 +11,45 @@ from stats import calculate_aroc, calculate_stats
 import matplotlib.pyplot as plt
 
 
-def boost():
+def boost(iterations, features):
     """
     initialize Boost
     """
 
     print("Collecting Data")
-    b_data, d_data, e_data, k_data = collect_review_data(10000)
-    print("Finished Collecting Data")
 
-    iterations = 20
+    # Review Data
+    # b_data, d_data, e_data, k_data = collect_review_data(features)
+    # b_data_folds = n_fold_cross_validation(b_data)
+    # d_data_folds = n_fold_cross_validation(d_data)
+    # e_data_folds = n_fold_cross_validation(e_data)
+    # k_data_folds = n_fold_cross_validation(k_data)
+
+    # Spam Task A Data
+    # sp1, sp2, sp3 = collect_spam_a_data(features)
+    # sp1_data_folds = n_fold_cross_validation(sp1)
+    # sp2_data_folds = n_fold_cross_validation(sp2)
+    # sp3_data_folds = n_fold_cross_validation(sp3)
+
+    # Spam Task B Data
+    # sps15 = collect_spam_b_data(features)
+
+    # Spam News Group
+    nws1, nws2 = collect_newsgroup_data(features)
+    nws1_data_folds = n_fold_cross_validation(nws1)
+    nws2_data_folds = n_fold_cross_validation(nws2)
+
+    print("Finished Collecting Data")
 
     confused_matrix_bois = []
     confused_output_bois = []
 
-    # b_data_folds = n_fold_cross_validation(b_data)
-    d_data_folds = n_fold_cross_validation(d_data)
-    # e_data_folds = n_fold_cross_validation(e_data)
-    k_data_folds = n_fold_cross_validation(k_data)
+    d_domain = nws1_data_folds
+    s_domain = nws2_data_folds
 
-    k_data_folds[:, 1] = d_data_folds[:, 1]
+    d_domain[:, 1] = s_domain[:, 1]
 
-    for idx, (train, test) in enumerate(k_data_folds):
+    for idx, (train, test) in enumerate(d_domain):
         print("Running Fold {}".format(idx + 1))
 
         output, matrix = run_boost(train, test, iterations)
@@ -88,26 +106,23 @@ def run_boost(train, test, iterations):
     for ex in test:
 
         vote = 0
-        sum_conf = 0
+        conf = 0
 
         total_class_weight = sum(classifier_weights)
 
         for classifier_idx, classifier in enumerate(classifiers):
             probs = classifier.predict_proba([ex.features])[0]
-            output = probs[0] < probs[1]
-            vote += (classifier_weights[classifier_idx] / total_class_weight) * int(
-                output
-            )
-            sum_conf += max(probs)
+            output = int(probs[0] < probs[1])
+
+            coeff = classifier_weights[classifier_idx] / total_class_weight
+            vote += coeff * output
+            conf += coeff * probs[1]
 
         # Make the vote discrete
         vote = True if vote >= 0.5 else False
 
-        # Calculate confidence for given outcome
-        total_conf = sum_conf / len(classifiers)
-
         # Calculate outputs and matrix
-        outputs.append((vote, total_conf))
+        outputs.append((ex.label, conf))
         is_correct = "t" if ex.label == vote else "f"
         is_positive = "p" if vote else "n"
         matrix[is_correct + is_positive] += 1
@@ -143,4 +158,24 @@ def update_weights(weights, output, alpha):
 
 
 if __name__ == "__main__":
-    boost()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-i", "--iterations", help="Number of iterations to run boosting", type=int
+    )
+    parser.add_argument(
+        "-f", "--features", help="Number of features the vocab should use", type=int
+    )
+
+    args = parser.parse_args()
+
+    if args.iterations:
+        iterations = args.iterations
+    else:
+        iterations = 20
+
+    if args.features:
+        features = args.features
+    else:
+        features = 500
+
+    boost(iterations, features)

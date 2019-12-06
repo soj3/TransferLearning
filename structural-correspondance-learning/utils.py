@@ -1,4 +1,5 @@
 import random
+from sklearn.feature_extraction.text import CountVectorizer
 random.seed(12345)
 
 
@@ -23,12 +24,7 @@ def merge_pivots_and_vocab(vocab, pivots, NUM_FEATURES):
     return vocab
 
 
-def split_data(data):
-    train_features, train_labels, test_features, test_labels = [], [], [], []
-
-    pos, neg = [], []
-    for ex in data:
-        (pos if ex.label == 1 else neg).append(ex)
+def split_data(pos, neg):
 
     pos_proportion = len(pos)/(len(pos) + len(neg))
     neg_proportion = 1 - pos_proportion
@@ -41,28 +37,56 @@ def split_data(data):
 
     train_examples = []
     test_examples = []
+    train_labels, test_labels = [], []
 
     random.shuffle(pos)
     random.shuffle(neg)
 
     for i in range(num_pos_train):
         train_examples.append(pos.pop())
+        train_labels.append(1)
 
     for i in range(num_neg_train):
         train_examples.append(neg.pop())
+        train_labels.append(0)
 
     for i in range(num_pos_test):
         test_examples.append(pos.pop())
+        test_labels.append(1)
 
     for i in range(num_neg_test):
         test_examples.append(neg.pop())
+        test_labels.append(0)
 
-    for ex in train_examples:
-        train_features.append(ex.features)
-        train_labels.append(ex.label)
+    return train_examples, train_labels, test_examples, test_labels
 
-    for ex in test_examples:
-        test_features.append(ex.features)
-        test_labels.append(ex.label)
 
-    return train_features, train_labels, test_features, test_labels
+def get_dicts_and_train_sets(train_source, train_and_unlabeled, unlabeled, target_un):
+    dicts = []
+    train_sets = []
+
+    dict1 = CountVectorizer(binary=True, min_df=5)
+    x_train = dict1.fit_transform(train_source).toarray()
+
+    dicts.append(dict1)
+    train_sets.append(x_train)
+
+    source_dict = CountVectorizer(binary=True, min_df=20)
+    x_train_source = source_dict.fit_transform(train_and_unlabeled).toarray()
+
+    dicts.append(source_dict)
+    train_sets.append(x_train_source)
+
+    unlabeled_dict = CountVectorizer(binary=True, min_df=40)
+    x_train_unlabeled = unlabeled_dict.fit_transform(unlabeled).toarray()
+
+    dicts.append(unlabeled_dict)
+    train_sets.append(x_train_unlabeled)
+
+    target_dict = CountVectorizer(binary=True, min_df=20)
+    x_train_target = target_dict.fit_transform(target_un).toarray()
+
+    dicts.append(target_dict)
+    train_sets.append(x_train_target)
+
+    return dicts, train_sets
