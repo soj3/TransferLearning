@@ -1,6 +1,7 @@
 from copy import deepcopy
 import data
 import sklearn.decomposition as skd
+from sklearn.feature_extraction.text import CountVectorizer
 from pivot import *
 from classifier import *
 from utils import *
@@ -10,22 +11,52 @@ import numpy as np
 
 LAMBDA = 1e-1
 MU = 1e-1
-NUM_PIVOTS = 26
-NUM_FEATURES = 100
-SVD_DIMENSION = 25
-
-
-def alpha_dist():
-    pass
+NUM_PIVOTS = 500
+NUM_FEATURES = 5000
+SVD_DIMENSION = 100
+MIN_PIVOT_APPEARANCE = 50
 
 
 def scl(source, target):
     print("Reading data...")
-    source_labeled, source_unlabeled, source_vocab = data.collect_review_data(source)
-    target_labeled, target_unlabeled, target_vocab = data.collect_review_data(target)
+    source_pos, source_neg, source_un = data.get_reviews(source)
+    target_pos, target_neg, target_un = data.get_reviews(target)
+
+    train_source, train_source_labels, test_source, test_source_labels = split_data(source_pos, source_neg)
+    train_target, train_target_labels, test_target, test_target_labels = split_data(target_pos, target_neg)
+
+    unlabeled = source_un + target_un + train_source
+    train_and_unlabeled = source_un + train_source
+
+    dicts = []
+    train_sets = []
+
+    dict1 = CountVectorizer(binary=True, min_df=5)
+    x_train = dict1.fit_transform(train_source).toarray()
+
+    dicts.append(dict1)
+    train_sets.append(x_train)
+
+    source_dict = CountVectorizer(binary=True, min_df=20)
+    x_train_source = source_dict.fit_transform(train_and_unlabeled).toarray()
+
+    dicts.append(source_dict)
+    train_sets.append(x_train_source)
+
+    unlabeled_dict = CountVectorizer(binary=True, min_df=40)
+    x_train_unlabeled = unlabeled_dict.fit_transform(unlabeled).toarray()
+
+    dicts.append(unlabeled_dict)
+    train_sets.append(x_train_unlabeled)
+
+    target_dict = CountVectorizer(binary=True, min_df=20)
+    x_train_target = target_dict.fit_transform(target_un).toarray()
+
+    dicts.append(target_dict)
+    train_sets.append(x_train_target)
 
     print("Selecting pivots...")
-    pivots = select_pivots(source_labeled, source_unlabeled, target_unlabeled, source_vocab, target_vocab, NUM_PIVOTS)
+    pivots, pivot_appearances = select_pivots(dicts, train_sets, train_source_labels)
 
     # create a binary classifier for each pivot feature on the combined unlabeled data of the source and target
 
