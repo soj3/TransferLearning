@@ -1,42 +1,32 @@
 import sklearn.linear_model as model
-from information_gain import calc_mutual_info
+from sklearn.metrics import mutual_info_score
+from main import NUM_PIVOTS, MIN_PIVOT_APPEARANCE
 
 
-def select_pivots(labeled_source, unlabeled_source, unlabeled_target, source_vocab, target_vocab, num_pivots):
+def select_pivots(dicts, train_sets, labels):
     # want to choose the num_pivots features with the highest mutual information gain to the source label
-    # sort the features according to how many times they occur in both the source and target domains
-    # then, choose the num_pivots features with the highest mutual info to the source label
 
+    # order of dicts is train_source, source, unlabeled, target
     # criteria for pivots: occurs more than 50 times, occurs in more than 5 examples, occurs in both domains
+
+    # sort the dicts words by their mutual info gain to the label
+    sorted_words = sort_pivots(dicts[0], train_sets[0], labels)
+
+    # get the pivots with the highest info gain that appear at minimum MIN_PIVOT_APPEARANCE times
     pivots = []
-    potential_pivots = []
-    # from the unlabeled source and unlabeled target data, find features that fulfill these criteria
-    new_dict1 = {k: v for (k, v) in source_vocab if v > 50}
-    new_dict2 = {k: v for (k, v) in target_vocab if v > 50}
-    for key in new_dict1.keys():
-        if key in new_dict2.keys():
-            num_occ1, num_occ2 = 0, 0
-            for example in unlabeled_source:
-                if key in example.words.keys():
-                    num_occ1 += 1
-            for example in unlabeled_target:
-                if key in example.words.keys():
-                    num_occ2 += 1
-            if num_occ1 > 50 and num_occ2 > 50:
-                potential_pivots.append(key)
+    pivot_appearances = []
+    for i in range(NUM_PIVOTS):
 
-    # create a dictionary containing the potential pivot features and their corresponding info gain to source
-    info = {}
-    for feature in potential_pivots:
-        info[feature] = calc_mutual_info(labeled_source, feature)
-    # sort according to mutual information
-    sorted_info = sorted(info.items(), key=lambda item: item[1], reverse=True)
+        source_count = sum(train_sets[1][:, dicts[1].get_feature_names().index(sorted_words[i])
+                                         if sorted_words[i] in dicts[1].get_feature_names() else 0])
+        target_count = sum(train_sets[3][:, dicts[3].get_feature_names().index(sorted_words[i])
+                                         if sorted_words[i] in dicts[3].get_feature_names() else 0])
 
-    # add top num_pivots to pivot list
-    for i in range(num_pivots):
-        pivots.append(sorted_info[i][0])
+        if source_count > MIN_PIVOT_APPEARANCE and target_count > MIN_PIVOT_APPEARANCE:
+            pivots.append(sorted_words[i])
+            pivot_appearances.append(dicts[2].get_feature_names().index(sorted_words[i]))
 
-    return pivots
+    return pivots, pivot_appearances
 
 
 def get_pivot_predictor_weights(data, vocab, pivots, NUM_FEATURES):
@@ -78,3 +68,19 @@ def get_pivot_predictor_weights(data, vocab, pivots, NUM_FEATURES):
         weights.append(weight)
         j += 1
     return weights, vocab[:NUM_FEATURES]
+
+
+def sort_pivots(dict_words, data, labels):
+    print("Sorting potential pivots...")
+    sorted_pivots = []
+    num_features = data.shape[1]
+    info_scores = []
+    for i in range(num_features):
+        info = mutual_info_score(data[:,i], labels)
+        info_scores.append(info)
+
+    info_scores_sorted = sorted(range(len(info_scores)), key=lambda i:info_scores[i], reverse=True)
+    for i in range(num_features):
+        sorted_pivots.append(dict_words.get_feature_names()[info_scores_sorted[i]])
+
+    return sorted_pivots

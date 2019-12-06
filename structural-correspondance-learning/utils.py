@@ -23,12 +23,7 @@ def merge_pivots_and_vocab(vocab, pivots, NUM_FEATURES):
     return vocab
 
 
-def split_data(data):
-    train_features, train_labels, test_features, test_labels = [], [], [], []
-
-    pos, neg = [], []
-    for ex in data:
-        (pos if ex.label == 1 else neg).append(ex)
+def split_data(pos, neg):
 
     pos_proportion = len(pos)/(len(pos) + len(neg))
     neg_proportion = 1 - pos_proportion
@@ -41,28 +36,25 @@ def split_data(data):
 
     train_examples = []
     test_examples = []
+    train_labels, test_labels = [], []
 
     random.shuffle(pos)
     random.shuffle(neg)
 
     for i in range(num_pos_train):
         train_examples.append(pos.pop())
+        train_labels.append(1)
 
     for i in range(num_neg_train):
         train_examples.append(neg.pop())
+        train_labels.append(0)
 
     for i in range(num_pos_test):
         test_examples.append(pos.pop())
+        test_labels.append(1)
 
     for i in range(num_neg_test):
         test_examples.append(neg.pop())
+        test_labels.append(0)
 
-    for ex in train_examples:
-        train_features.append(ex.features)
-        train_labels.append(ex.label)
-
-    for ex in test_examples:
-        test_features.append(ex.features)
-        test_labels.append(ex.label)
-
-    return train_features, train_labels, test_features, test_labels
+    return train_examples, train_labels, test_examples, test_labels
