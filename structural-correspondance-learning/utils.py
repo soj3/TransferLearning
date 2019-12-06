@@ -46,7 +46,7 @@ def split_data(pos, neg, num_folds, examples_per_fold):
 
         for j in range(num_neg):
             fold.append(neg.pop())
-            fold_labels.append(0)
+            fold_labels.append(-1)
 
         data_folds.append(fold)
         data_fold_labels.append(fold_labels)
@@ -83,3 +83,16 @@ def get_dicts_and_train_sets(train_source, train_and_unlabeled, unlabeled, targe
     train_sets.append(x_train_target)
 
     return dicts, train_sets
+
+
+def huber_loss(predictions, actual):
+    loss = 0
+    assert len(predictions) == len(actual)
+    for i in range(len(predictions)):
+        if predictions[i] * actual[i] >= -1:
+            loss += max(0, 1 - predictions[i] * actual[i]) ** 2
+        else:
+            loss += -4 * predictions[i] * actual[i]
+
+    return loss
+

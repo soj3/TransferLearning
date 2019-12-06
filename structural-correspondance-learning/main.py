@@ -10,7 +10,7 @@ import numpy as np
 
 LAMBDA = 1e-1
 MU = 1e-1
-NUM_PIVOTS = 500
+NUM_PIVOTS = 26
 SVD_DIMENSION = 25
 MIN_PIVOT_APPEARANCE = 10
 NUM_FOLDS = 5
@@ -60,9 +60,11 @@ def scl(source, target):
         non_pivot_feature_matrix = non_pivot_feature_matrix[num_source_examples:-num_target_examples][:]
 
         pivot_appearance_matrix = pivot_appearance_matrix[num_source_examples:-num_target_examples]
+        # convert the 0's to -1's so that huber loss actually works
+        pivot_appearance_matrix_for_huber = np.where(pivot_appearance_matrix == 0, -1, pivot_appearance_matrix)
 
         print("Collecting pivot predictor weights...")
-        weights = get_pivot_predictor_weights(non_pivot_feature_matrix, pivot_appearance_matrix)
+        weights = get_pivot_predictor_weights(non_pivot_feature_matrix, pivot_appearance_matrix_for_huber)
 
         # compute the Singular value decomposition of the weights matrix
         print("Calculating SVD...")
@@ -111,8 +113,31 @@ def scl(source, target):
     print("Average adapted target acc is " + str(round(avg_adapted_target_acc,3)) + " " + u'\xb1' + " " +
           str(round(std_adapted_target_acc,2)))
 
+    print("Calculating A-distance...")
+
+    a_dist = get_a_dist(pivot_matrix, dicts, train_sets)
+
+    print("A-distance between " + source + " and " + target + " is " + str(a_dist))
 
 
+def get_a_dist(pivot_matrix, dicts, train_sets):
+
+    combined_examples = []
+    train_domain_labels = []
+    test_examples = []
+    test_domain_labels = []
+
+    classifier = model.SGDClassifier(loss="modified_huber")
+    classifier.fit(combined_examples, train_domain_labels)
+    predictions = classifier.predict(test_examples)
+
+    loss = huber_loss(predictions, test_domain_labels)
+
+    loss_per_example = loss/len(test_examples)
+
+    a_dist = round((1-loss_per_example) * 100, 2)
+
+    return a_dist
 
 
 def main():
