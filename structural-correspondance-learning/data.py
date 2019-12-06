@@ -14,8 +14,7 @@ def parse_line(line):
         word, count_str = word_count.split(":")
         count = int(count_str)
 
-        for i in range(count):
-            text = text + word + " "
+        text = text + word + " "
     return text
 
 

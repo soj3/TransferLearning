@@ -15,7 +15,7 @@ def select_pivots(dicts, train_sets, labels):
     # get the pivots with the highest info gain that appear at minimum MIN_PIVOT_APPEARANCE times
     pivots = []
     pivot_appearances = []
-    for i in range(NUM_PIVOTS * 5):
+    for i in range(min(len(dicts[2].get_feature_names()), len(sorted_words))):
 
         source_count = sum(train_sets[1][:, dicts[1].get_feature_names().index(sorted_words[i])
                                          if sorted_words[i] in dicts[1].get_feature_names() else 0])
@@ -36,7 +36,7 @@ def get_pivot_predictor_weights(non_pivot_feature_matrix, pivot_appearance_matri
     # for each pivot, we create a classifier that predicts the likelihood of that pivot appearing in the example,
     # given all of the other features (i.e. words) of the example
     for i in range(NUM_PIVOTS):
-        print("Training pivot predictor", j)
+        print("Training pivot predictor " + str(j) + "...")
         # train a Stochastic gradient descent classifier using the modified Huber loss function
         classifier = model.SGDClassifier(loss="modified_huber")
         classifier.fit(non_pivot_feature_matrix, pivot_appearance_matrix[:, i])

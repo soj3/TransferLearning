@@ -1,16 +1,14 @@
-from copy import deepcopy
-import numpy as np
-
-
 from classifier import LogRegClassifier
 import scipy.optimize as spo
+import numpy as np
+from copy import deepcopy
 
 LAMBDA = 1e-1
 MU = 1e-1
 NUM_ITERATIONS = 10000
+SVD_DIMENSION = 25
 
-
-def source_loss(weights, original_adapted_weights, train_examples, train_labels):
+def source_loss(weights, original_adapted_weights, traint_examples, train_labels):
     loss = 0
     predictions = []
     for ex in train_examples:
