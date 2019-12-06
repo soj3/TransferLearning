@@ -1,5 +1,6 @@
 from statistics import stdev, mean
 from typing import List, Dict
+import matplotlib.pyplot as plt
 
 
 def calculate_stats(arr_of_confusion: List[Dict]):
@@ -42,6 +43,8 @@ def calculate_aroc(arr_of_confidence):
         fpr = fp / total_negative if total_negative > 0 else 0
         tpr = tp / total_positive if total_positive > 0 else 0
         roc_points.append([fpr, tpr])
+    X = [r[0] for r in roc_points]
+    y = [r[1] for r in roc_points]
 
     print("Area under ROC: {0:0.3f}".format(calculate_integral(roc_points)))
 

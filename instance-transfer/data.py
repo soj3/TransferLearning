@@ -43,27 +43,27 @@ def collect_spam_a_data(num_features=3000):
 
 def collect_spam_b_data(num_features=3000):
     domains = [
-        "task_a_u00_eval_lab.tf",
-        "task_a_u01_eval_lab.tf",
-        "task_a_u02_eval_lab.tf",
-        "task_a_u03_eval_lab.tf",
-        "task_a_u04_eval_lab.tf",
-        "task_a_u05_eval_lab.tf",
-        "task_a_u06_eval_lab.tf",
-        "task_a_u07_eval_lab.tf",
-        "task_a_u08_eval_lab.tf",
-        "task_a_u09_eval_lab.tf",
-        "task_a_u10_eval_lab.tf",
-        "task_a_u11_eval_lab.tf",
-        "task_a_u12_eval_lab.tf",
-        "task_a_u13_eval_lab.tf",
-        "task_a_u14_eval_lab.tf",
+        "task_b_u00_eval_lab.tf",
+        "task_b_u01_eval_lab.tf",
+        "task_b_u02_eval_lab.tf",
+        "task_b_u03_eval_lab.tf",
+        "task_b_u04_eval_lab.tf",
+        "task_b_u05_eval_lab.tf",
+        "task_b_u06_eval_lab.tf",
+        "task_b_u07_eval_lab.tf",
+        "task_b_u08_eval_lab.tf",
+        "task_b_u09_eval_lab.tf",
+        "task_b_u10_eval_lab.tf",
+        "task_b_u11_eval_lab.tf",
+        "task_b_u12_eval_lab.tf",
+        "task_b_u13_eval_lab.tf",
+        "task_b_u14_eval_lab.tf",
     ]
 
     vocab = {}
     spam_domains = []
     for domain in domains:
-        filename = join(task_a_lab_folder, domain)
+        filename = join(task_b_lab_folder, domain)
         spam_domains.append(read_spams(domain, vocab, filename))
 
     vocab = sorted(vocab.items(), key=lambda item: item[1])[::-1]
