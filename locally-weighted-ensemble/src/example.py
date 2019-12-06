@@ -1,32 +1,24 @@
 from typing import List, Dict, Tuple
-from collections.abc import MutableSequence
+from collections.abc import Sequence, Hashable
 
 
-class Example(MutableSequence):
-    def __init__(self, label: int, weight: float):
-        self.weight = weight
+class Example(Sequence, Hashable):
+    def __init__(self, label: int, weight: float = 1):
         self.label = label
-        self.features = []
+        self.features = ()
 
     def __getitem__(self, id):
         return self.features.__getitem__(id)
 
-    def __setitem__(self, key, value):
-        return self.features.__setitem__(key, value)
-
-    def __delitem__(self, key):
-        return self.features.__delitem__(key)
-
     def __len__(self):
         return self.features.__len__()
 
-    def insert(self, key, value):
-        return self.features.insert(key, value)
+    def __iter__(self):
+        return self.features.__iter__()
 
     def __eq__(self, value):
         return (
             isinstance(value, Example)
-            and self.weight == value.weight
             and self.label == value.label
             and self.features == value.features
         )
@@ -34,19 +26,17 @@ class Example(MutableSequence):
     def __ne__(self, value):
         return not self.__eq__(value)
 
+    def __hash__(self):
+        return hash((self.label, self.features))
+
 
 class SentimentExample(Example):
     def __init__(self, words: Dict[str, int], label: int, weight: float = 1):
-        super().__init__(label, weight)
+        super().__init__(label)
         self.words = words
 
     def create_features(self, vocab: List[Tuple[str, int]]) -> None:
-        self.features = []
-        for v, __ in vocab:
-            if v in self.words:
-                self.features.append(self.words[v])
-            else:
-                self.features.append(0)
+        self.features = tuple(self.words[v] if v in self.words else 0 for v, _ in vocab)
 
     def __repr__(self):
         return f"{self.features}, {self.label}\n"
