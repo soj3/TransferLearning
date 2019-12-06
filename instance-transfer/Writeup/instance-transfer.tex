@@ -5,6 +5,7 @@
 \usepackage{microtype}
 \usepackage{amssymb}
 \usepackage{amsfonts}
+\usepackage{float}
 \usepackage{amsmath}
 \usepackage{amsthm}
 \usepackage{graphicx}
@@ -107,9 +108,18 @@
         an assumption is made that this example lies outside of the {\it same-distribution} and the example weight is decreased. Likewise,
         the inverse applies.
 
+        \begin{figure}[H]
+          \centering
+          \includegraphics[width=0.6\textwidth]{tradaboost-algorithm.png}
+          \caption{TrAdaBoost Algorithm \autocite{dai_yang_xue_yu_2007}}
+          \label{tradaboost-algorithm}
+        \end{figure}
+
       \subsection{Theory} \label{boost-tradaboost-theory}
 
-    \section{Mutli-source TrAdaBoost} \label{boost-multisource}
+
+
+    \section{Mutlisource TrAdaBoost} \label{boost-multisource}
 
       \subsection{Formal Definition} \label{boost-multi-def}
 
@@ -117,5 +127,7 @@
 
       \subsection{Theory} \label{boost-multi-theory}
 
+      \subsection{Weighting Multisource TrAdaBoost} \label{boost-multisource-weight}
+      
     \printbibliography
 \end{document}
