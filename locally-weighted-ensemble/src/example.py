@@ -3,9 +3,9 @@ from collections.abc import Sequence, Hashable
 
 
 class Example(Sequence, Hashable):
-    def __init__(self, label: int, weight: float = 1):
+    def __init__(self, label: int, features: Tuple = None):
         self.label = label
-        self.features = ()
+        self.features = features
 
     def __getitem__(self, id):
         return self.features.__getitem__(id)
@@ -31,7 +31,7 @@ class Example(Sequence, Hashable):
 
 
 class SentimentExample(Example):
-    def __init__(self, words: Dict[str, int], label: int, weight: float = 1):
+    def __init__(self, words: Dict[str, int], label: int):
         super().__init__(label)
         self.words = words
 
