@@ -23,10 +23,16 @@ def scl(source, target):
 
     baseline_source_accs = []
     baseline_target_accs = []
+    baseline_source_rocs = []
+    baseline_target_rocs = []
     adapted_source_accs = []
     adapted_target_accs = []
+    adapted_source_rocs = []
+    adapted_target_rocs = []
     corrected_source_accs = []
     corrected_target_accs = []
+    corrected_source_rocs = []
+    corrected_target_rocs = []
     data_folds, data_fold_labels = split_data(source_pos, source_neg, NUM_FOLDS, 200)
     for i in range(len(data_folds)):
         print('\033[1m' + "Training fold " + str(i + 1) + "..." + '\033[0m')
@@ -90,15 +96,24 @@ def scl(source, target):
 
         # fold_source_acc[0] is the baseline accuracy on source, fold_source_acc[1] is the adapted acc on source, and 2
         # is corrected source acc. same goes for target
-        fold_source_acc, fold_target_acc = evaluate_classifiers(pivot_matrix, pivot_appearances, dicts, train_sets,
-                                                                test_source, test_source_labels, test_target,
-                                                                test_target_labels, classifiers)
+        fold_source_acc, fold_target_acc, source_roc, target_roc = evaluate_classifiers(pivot_matrix, pivot_appearances,
+                                                                                       dicts, train_sets, test_source,
+                                                                                       test_source_labels, test_target,
+                                                                                       test_target_labels, classifiers)
         baseline_source_accs.append(fold_source_acc[0])
         adapted_source_accs.append(fold_source_acc[1])
         corrected_source_accs.append(fold_source_acc[2])
         baseline_target_accs.append(fold_target_acc[0])
         adapted_target_accs.append(fold_target_acc[1])
         corrected_target_accs.append(fold_target_acc[2])
+        baseline_source_rocs.append(source_roc[0])
+        adapted_source_rocs.append(source_roc[1])
+        corrected_source_rocs.append(source_roc[2])
+        baseline_target_rocs.append(target_roc[0])
+        adapted_target_rocs.append(target_roc[1])
+        corrected_target_rocs.append(target_roc[2])
+
+
 
     avg_baseline_source_acc = np.average(baseline_source_accs)
     avg_adapted_source_acc = np.average(adapted_source_accs)
@@ -112,19 +127,25 @@ def scl(source, target):
     std_baseline_target_acc = np.std(baseline_target_accs)
     std_adapted_target_acc = np.std(adapted_target_accs)
     std_corrected_target_acc = np.std(corrected_target_accs)
+    avg_baseline_source_roc = np.average(baseline_source_rocs)
+    avg_baseline_target_roc = np.average(baseline_target_rocs)
+    avg_adapted_source_roc = np.average(adapted_source_rocs)
+    avg_adapted_target_roc = np.average(adapted_target_rocs)
+    avg_corrected_source_roc = np.average(corrected_source_rocs)
+    avg_corrected_target_roc = np.average(corrected_target_rocs)
 
     print("Average baseline source acc is " + str(round(avg_baseline_source_acc,3)) + " " + u'\xb1' + " " +
-          str(round(std_baseline_source_acc, 2)))
+          str(round(std_baseline_source_acc, 2)) + ", ROC is " + avg_baseline_source_roc)
     print("Average baseline target acc is " + str(round(avg_baseline_target_acc,3)) + " " + u'\xb1' + " " +
-          str(round(std_baseline_target_acc, 2)))
+          str(round(std_baseline_target_acc, 2)) + ", ROC is " + avg_baseline_target_roc)
     print("Average adapted source acc is " + str(round(avg_adapted_source_acc,3)) + " " + u'\xb1' + " " +
-          str(round(std_adapted_source_acc, 2)))
+          str(round(std_adapted_source_acc, 2)) + ", ROC is " + avg_adapted_source_roc)
     print("Average adapted target acc is " + str(round(avg_adapted_target_acc,3)) + " " + u'\xb1' + " " +
-          str(round(std_adapted_target_acc, 2)))
+          str(round(std_adapted_target_acc, 2)) + ", ROC is " + avg_adapted_target_roc)
     print("Average corrected source acc is " + str(round(avg_corrected_source_acc, 3)) + " " + u'\xb1' + " " +
-          str(round(std_corrected_source_acc, 2)))
+          str(round(std_corrected_source_acc, 2)) + ", ROC is " + avg_corrected_source_roc)
     print("Average corrected target acc is " + str(round(avg_corrected_target_acc, 3)) + " " + u'\xb1' + " " +
-          str(round(std_corrected_target_acc, 2)))
+          str(round(std_corrected_target_acc, 2)) + ", ROC is " + avg_corrected_target_roc)
 
     print("Calculating A-distance...")
 
