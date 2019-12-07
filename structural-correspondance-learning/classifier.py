@@ -73,7 +73,7 @@ def evaluate_classifiers(pivot_matrix, pivot_appearances, dicts, train_sets, tes
             source_rocs.append(adapted_source_roc)
 
             target_predictions = classifier.predict(adapted_test_target)
-            adapted_target_score = classifier.decision_function(adapted_target_examples)
+            adapted_target_score = classifier.decision_function(adapted_test_target)
             target_correct = 0
             for i in range(len(target_predictions)):
                 if target_predictions[i] == test_target_labels[i]:
@@ -87,7 +87,7 @@ def evaluate_classifiers(pivot_matrix, pivot_appearances, dicts, train_sets, tes
         if name == "Corrected Source":
             print("Testing Corrected source...")
             source_predictions = classifier.predict(adapted_test_source)
-            corrected_source_score = classifier.decision_function(adapted_source_examples)
+            corrected_source_score = classifier.decision_function(adapted_test_source)
             source_correct = 0
             for i in range(len(source_predictions)):
                 if source_predictions[i] == test_source_labels[i]:
@@ -99,7 +99,7 @@ def evaluate_classifiers(pivot_matrix, pivot_appearances, dicts, train_sets, tes
             source_rocs.append(corrected_source_roc)
 
             target_predictions = classifier.predict(adapted_test_target)
-            corrected_target_score = classifier.decision_function(adapted_target_examples)
+            corrected_target_score = classifier.decision_function(adapted_test_target)
             target_correct = 0
             for i in range(len(target_predictions)):
                 if target_predictions[i] == test_target_labels[i]:
