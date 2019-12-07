@@ -21,7 +21,7 @@ b_data, d_data, e_data, k_data = collect_review_data(5000)
 
 N = 1000
 
-train = [random.sample(d_data, N), random.sample(b_data, N)]
+train = [random.sample(d_data, N), random.sample(b_data, N), random.sample(k_data, N)]
 models = [LogisticRegression(solver="lbfgs", max_iter=200) for data in train]
 
 test = random.sample(k_data, N)
