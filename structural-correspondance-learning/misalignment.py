@@ -1,67 +1,38 @@
-from classifier import LogRegClassifier
-import scipy.optimize as spo
+from sklearn.linear_model import SGDClassifier
 import numpy as np
 from copy import deepcopy
 
-LAMBDA = 1e-1
-MU = 1e-1
-NUM_ITERATIONS = 10000
-SVD_DIMENSION = 25
 
-def source_loss(weights, original_adapted_weights, traint_examples, train_labels):
-    loss = 0
-    predictions = []
-    for ex in train_examples:
-        if np.dot(weights, ex) > 0:
-            predictions.append(1)
-        else:
-            predictions.append(-1)
-
-    assert len(predictions) == len(train_labels)
-
-    base_weights = weights[:-SVD_DIMENSION-1]
-    adapted_weights = weights[-SVD_DIMENSION-1:-1]
-    for i in range(len(predictions)):
-        if predictions[i] * train_labels[i] >= 1:
-            pass
-        elif predictions[i] * train_labels[i] < -1:
-            loss += (-4 * predictions[i] * train_labels[i])
-        else:
-            loss += ((1 - predictions[i] * train_labels[i]) ** 2)
-
-    return loss + (LAMBDA * np.linalg.norm(base_weights) ** 2) + \
-        (MU * np.linalg.norm(np.subtract(original_adapted_weights, adapted_weights) ** 2))
-
-
-def gradient(weights, adapted_weights, train_examples, train_labels):
-    grad = 0
-    predictions = []
-    for ex in train_examples:
-        if np.dot(weights,ex) >0:
-            predictions.append(1)
-        else:
-            predictions.append(-1)
-
-    for i in range(len(predictions)):
-        if predictions[i] * train_labels[i] + 1 <= 1:
-            grad += -4
-        elif -1 < predictions[i] * train_labels[i] < 1:
-            grad += -2 * (1 - predictions[i] * train_labels[i])
-
-    return [grad]
-
-
-def correct_misalignments(base_classifier, train_examples, train_labels, pivot_matrix):
+def correct_misalignments(base_classifier, pivot_matrix, target_pos, target_neg, pivot_appearances, dicts):
     print("Correcting misalignments...")
-    adapted_examples = deepcopy(train_examples)
-    for ex in adapted_examples:
-        #print(len(ex))
-        adapted_features = np.dot(ex, pivot_matrix)
-        ex.extend(adapted_features)
-    weights = base_classifier.coef_[0]
-    adapted_weights = weights[-SVD_DIMENSION-1:-1]
 
-    new_weights = spo.fmin(source_loss, weights,  args=(adapted_weights, adapted_examples, train_labels),
-                           maxiter=NUM_ITERATIONS)
-    new_classifier = LogRegClassifier(new_weights)
-    return new_classifier
+    weights = base_classifier.coef_[0]
+    temp_weights = deepcopy(weights)
+    train_examples = []
+    train_example_labels = []
+
+    examples_pos = deepcopy(target_pos)
+    examples_neg = deepcopy(target_neg)
+
+    pos_proportion = len(examples_pos)/(len(examples_pos) + len(examples_neg))
+    neg_proportion = 1-pos_proportion
+    for i in range(int(pos_proportion * 50)):
+        train_examples.append(examples_pos.pop())
+        train_example_labels.append(1)
+    for i in range(int(neg_proportion * 50)):
+        train_examples.append(examples_neg.pop())
+        train_example_labels.append(-1)
+
+    feature_dict = dicts[2]
+    train_dict = dicts[0]
+    train_examples_reshaped = train_dict.transform(train_examples).toarray()
+    train_examples_unlabeled = feature_dict.transform(train_examples).toarray()
+    train_examples_for_adaptation = np.delete(train_examples_unlabeled, pivot_appearances, 1)
+    adapted_train_examples = np.dot(train_examples_for_adaptation, pivot_matrix)
+
+    combined_train_examples = np.concatenate((train_examples_reshaped, adapted_train_examples), 1)
+
+    temp_classifier = SGDClassifier(loss="modified_huber")
+    temp_classifier.fit(combined_train_examples, train_example_labels, coef_init=temp_weights)
+
+    return temp_classifier

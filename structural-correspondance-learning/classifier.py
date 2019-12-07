@@ -71,21 +71,22 @@ def evaluate_classifiers(pivot_matrix, pivot_appearances, dicts, train_sets, tes
 
         if name == "Corrected Source":
             print("Testing Corrected source...")
-            source_predictions = classifier.predict(test_source)
+            source_predictions = classifier.predict(adapted_test_source)
             source_correct = 0
             for i in range(len(source_predictions)):
                 if source_predictions[i] == test_source_labels[i]:
                     source_correct += 1
-            source_acc = source_correct / len(test_source)
-            print("Corrected source accuracy on source: ", source_acc)
-
-            target_predictions = classifier.predict(test_target)
+            corrected_source_acc = source_correct / len(adapted_test_source)
+            print("Corrected source accuracy on source: ", corrected_source_acc)
+            source_acc.append(corrected_source_acc)
+            target_predictions = classifier.predict(adapted_test_target)
             target_correct = 0
             for i in range(len(target_predictions)):
                 if target_predictions[i] == test_target_labels[i]:
                     target_correct += 1
-            target_acc = target_correct / len(test_target)
-            print("Corrected source accuracy on target: ", target_acc)
+            corrected_target_acc = target_correct / len(adapted_test_target)
+            print("Corrected source accuracy on target: ", corrected_target_acc)
+            target_acc.append(corrected_target_acc)
 
     return source_acc, target_acc
 
@@ -128,7 +129,7 @@ class LogRegClassifier:
         predict_array = []
         for feature in features:
             if np.dot(feature, self.weights) > 0:
-                predict_array.append(1)
+                predict_array.append(-1)
             else:
-                predict_array.append(0)
+                predict_array.append(1)
         return predict_array

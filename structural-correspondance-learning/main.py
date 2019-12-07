@@ -10,7 +10,7 @@ import numpy as np
 
 LAMBDA = 1e-1
 MU = 1e-1
-NUM_PIVOTS = 26
+NUM_PIVOTS = 50
 SVD_DIMENSION = 25
 MIN_PIVOT_APPEARANCE = 10
 NUM_FOLDS = 5
@@ -25,6 +25,8 @@ def scl(source, target):
     baseline_target_accs = []
     adapted_source_accs = []
     adapted_target_accs = []
+    corrected_source_accs = []
+    corrected_target_accs = []
     data_folds, data_fold_labels = split_data(source_pos, source_neg, NUM_FOLDS, 200)
     for i in range(len(data_folds)):
         print('\033[1m' + "Training fold " + str(i + 1) + "..." + '\033[0m')
@@ -80,29 +82,36 @@ def scl(source, target):
         classifiers = create_classifiers(pivot_matrix, pivot_appearances, dicts, train_sets, train_source,
                                          train_source_labels)
 
-        # for (k, v) in classifiers:
-        #     if k == "Source":
-        #         new_classifier = correct_misalignments(v, train_target[:50], train_target_labels[:50], pivot_matrix)
-        #         classifiers.append(("Corrected Source", new_classifier))
+        for (k, v) in classifiers:
+            if k == "Source":
+                new_classifier = correct_misalignments(v, pivot_matrix, target_pos, target_neg, pivot_appearances,
+                                                       dicts)
+                classifiers.append(("Corrected Source", new_classifier))
 
-        # fold_source_acc[0] is the baseline accuracy on source, fold_source_acc[1] is the adapted acc on source
-        # same for target
+        # fold_source_acc[0] is the baseline accuracy on source, fold_source_acc[1] is the adapted acc on source, and 2
+        # is corrected source acc. same goes for target
         fold_source_acc, fold_target_acc = evaluate_classifiers(pivot_matrix, pivot_appearances, dicts, train_sets,
                                                                 test_source, test_source_labels, test_target,
                                                                 test_target_labels, classifiers)
         baseline_source_accs.append(fold_source_acc[0])
         adapted_source_accs.append(fold_source_acc[1])
+        corrected_source_accs.append(fold_source_acc[2])
         baseline_target_accs.append(fold_target_acc[0])
         adapted_target_accs.append(fold_target_acc[1])
+        corrected_target_accs.append(fold_target_acc[2])
 
     avg_baseline_source_acc = np.average(baseline_source_accs)
     avg_adapted_source_acc = np.average(adapted_source_accs)
+    avg_corrected_source_acc = np.average(corrected_source_accs)
     avg_baseline_target_acc = np.average(baseline_target_accs)
     avg_adapted_target_acc = np.average(adapted_target_accs)
+    avg_corrected_target_acc = np.average(corrected_target_accs)
     std_baseline_source_acc = np.std(baseline_source_accs)
     std_adapted_source_acc = np.std(adapted_source_accs)
+    std_corrected_source_acc = np.std(corrected_source_accs)
     std_baseline_target_acc = np.std(baseline_target_accs)
     std_adapted_target_acc = np.std(adapted_target_accs)
+    std_corrected_target_acc = np.std(corrected_target_accs)
 
     print("Average baseline source acc is " + str(round(avg_baseline_source_acc,3)) + " " + u'\xb1' + " " +
           str(round(std_baseline_source_acc, 2)))
@@ -111,33 +120,17 @@ def scl(source, target):
     print("Average adapted source acc is " + str(round(avg_adapted_source_acc,3)) + " " + u'\xb1' + " " +
           str(round(std_adapted_source_acc, 2)))
     print("Average adapted target acc is " + str(round(avg_adapted_target_acc,3)) + " " + u'\xb1' + " " +
-          str(round(std_adapted_target_acc,2)))
+          str(round(std_adapted_target_acc, 2)))
+    print("Average corrected source acc is " + str(round(avg_corrected_source_acc, 3)) + " " + u'\xb1' + " " +
+          str(round(std_corrected_source_acc, 2)))
+    print("Average corrected target acc is " + str(round(avg_corrected_target_acc, 3)) + " " + u'\xb1' + " " +
+          str(round(std_corrected_target_acc, 2)))
 
     print("Calculating A-distance...")
 
-    a_dist = get_a_dist(pivot_matrix, dicts, train_sets)
+    a_dist = get_a_dist(pivot_matrix, pivot_appearances, dicts, source_un, target_un)
 
     print("A-distance between " + source + " and " + target + " is " + str(a_dist))
-
-
-def get_a_dist(pivot_matrix, dicts, train_sets):
-
-    combined_examples = []
-    train_domain_labels = []
-    test_examples = []
-    test_domain_labels = []
-
-    classifier = model.SGDClassifier(loss="modified_huber")
-    classifier.fit(combined_examples, train_domain_labels)
-    predictions = classifier.predict(test_examples)
-
-    loss = huber_loss(predictions, test_domain_labels)
-
-    loss_per_example = loss/len(test_examples)
-
-    a_dist = round((1-loss_per_example) * 100, 2)
-
-    return a_dist
 
 
 def main():
@@ -146,8 +139,8 @@ def main():
     # ap.add_argument("-t", "--target", required=True, help="Target domain")
     # args = vars(ap.parse_args())
 
-    scl("books", "dvd")
-    #scl("books", "kitchen")
+    #scl("books", "dvd")
+    scl("books", "kitchen")
     # scl("books", "electronics")
     # scl("dvd", "electronics")
     # scl("dvd", "kitchen")

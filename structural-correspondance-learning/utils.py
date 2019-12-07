@@ -1,5 +1,6 @@
 import random
 from sklearn.feature_extraction.text import CountVectorizer
+from main import *
 random.seed(12345)
 
 
@@ -24,8 +25,9 @@ def merge_pivots_and_vocab(vocab, pivots, NUM_FEATURES):
     return vocab
 
 
-def split_data(pos, neg, num_folds, examples_per_fold):
-
+def split_data(pos_data, neg_data, num_folds, examples_per_fold):
+    pos = deepcopy(pos_data)
+    neg = deepcopy(neg_data)
     data_len = len(pos) + len(neg)
     pos_proportion = len(pos)/data_len
     neg_proportion = 1 - pos_proportion
@@ -95,4 +97,56 @@ def huber_loss(predictions, actual):
             loss += -4 * predictions[i] * actual[i]
 
     return loss
+
+
+def get_a_dist(pivot_matrix, pivot_appearances, dicts, source_un, target_un):
+    total_num_examples = len(source_un) + len(target_un)
+    source_proportion = len(source_un) / total_num_examples
+    target_proportion = 1 - source_proportion
+
+    combined_examples = []
+    train_domain_labels = []
+    test_examples = []
+    test_domain_labels = []
+    random.shuffle(source_un)
+    random.shuffle(target_un)
+
+    for i in range(int(1 / 4 * source_proportion * total_num_examples)):
+        combined_examples.append(source_un.pop())
+        train_domain_labels.append(1)
+
+    for i in range(int(1 / 4 * target_proportion * total_num_examples)):
+        combined_examples.append(target_un.pop())
+        train_domain_labels.append(-1)
+
+    for i in range(int(1 / 4 * source_proportion * total_num_examples)):
+        combined_examples.append(source_un.pop())
+        train_domain_labels.append(1)
+
+    for i in range(int(1 / 4 * target_proportion * total_num_examples)):
+        test_examples.append(target_un.pop())
+        test_domain_labels.append(-1)
+
+    dict = dicts[2]
+    train_data = dict.transform(combined_examples).toarray()
+    test_data = dict.transform(test_examples).toarray()
+
+    train_examples_for_adaptation = np.delete(train_data, pivot_appearances, 1)
+    adapted_train_examples = train_examples_for_adaptation.dot(pivot_matrix)
+
+    test_examples_for_adaptation = np.delete(test_data, pivot_appearances, 1)
+    adapted_test_examples = test_examples_for_adaptation.dot(pivot_matrix)
+
+    classifier = model.SGDClassifier(loss="modified_huber")
+    classifier.fit(adapted_train_examples, train_domain_labels)
+    predictions = classifier.predict(adapted_test_examples)
+
+    loss = huber_loss(predictions, test_domain_labels)
+
+    loss_per_example = loss / len(test_examples)
+    risk = loss_per_example/len(test_examples)
+
+    a_dist = round((1 - risk) * 100, 2)
+
+    return a_dist
 
