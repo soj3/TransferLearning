@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Tuple, Union
-from collections.abc import Collection
-
+from collections.abc import Sized
+from multiprocessing import Pool
 import numpy as np
 from networkx import Graph
 from sklearn import metrics
@@ -11,9 +11,14 @@ from sklearn.svm import SVC
 from example import Example, SentimentExample
 
 n_clusters = 2
+verbose = True
+n_cores = 8
 
 
 def score(y, y_hat):
+    """
+    Return percentage accuracy given two lists of output predictions
+    """
     if len(y) > 0:
         return sum(
             int(actual == predicted) for actual, predicted in zip(y, y_hat)
@@ -42,66 +47,73 @@ def lwe(
     -------
         a collection of tuples containing examples in the test set and the probability of a positive classification
     """
+    pool = Pool(processes=n_cores)
     # use a hierarchial clustering model to separate into 'positive' and 'negative' clusters
     cluster = Cluster(n_clusters=clusters)
-    cluster_purities = [
-        purity([ex.label for ex in data], cluster.fit_predict(data)) for data in train
-    ]
+    cluster_purities = pool.map(
+        lambda data: purity(labels(data), cluster.fit_predict(data)), train
+    )
+
     print(f"Data Clustered with average purity {avg(cluster_purities)}")
     # if cluster purity is poor, then return average of all the predictions
     if avg(cluster_purities) < 0.5:
+        print("Poor clustering quality, returning weighted average")
         # return the weighted probability of label = 1 for every x in T
         weight = 1 / len(models)
-        return [
-            1
-            if sum(weight * model.predict_proba([x])[-1][-1] for model in models) > 0.5
-            else 0
-            for x in test
-        ]
+        # return the equally weighted output positive probability
+        outputs = [sum(weight * prediction(model, x) for model in models) for x in test]
+        return [round(x) for x in outputs]
     else:
-        cluster = Cluster(n_clusters=clusters)
-        cluster_preds = cluster.fit_predict(test)
-        neighborhoods = [
-            generate_neighborhood(
+        cluster_preds = Cluster(n_clusters=clusters).fit_predict(test)
+        neighborhoods = pool.map(
+            lambda model: generate_neighborhood(
                 data=test,
                 model_predictions=model.predict(test),
                 cluster_predictions=cluster_preds,
-            )
-            for model in models
-        ]
+            ),
+            models,
+        )
 
         t_prime = set()
         outputs = {}
         for x in test:
-            local_weights = {
-                models[i]: s(g[0], g[1], x) for i, g in enumerate(neighborhoods)
-            }
-            # average (sum/len) s(x) >= delta
-            if avg(local_weights.values()) >= threshold:
+            # average similarity over all neighborhoods
+            weights = [s(gm, gt, x) for gm, gt in neighborhoods]
+            norm = sum(weights)
+            # normalize by the sum of weights to ensure a weighted sum of probabilities does not exceed 1
+            weights = [w / norm for w in weights]
+            # average s(x) >= delta
+            if avg(weights) >= threshold:
                 outputs[x] = sum(
-                    [
-                        local_weights[model] * model.predict_proba([x])[-1][-1]
-                        for model in models
-                    ]
+                    weight * prediction(model, x)
+                    for weight, model in zip(weights, models)
                 )
             else:
                 t_prime.add(x)
 
         test_predictions = {x: pred for x, pred in zip(test, cluster_preds)}
         for x in t_prime:
-            # choose the average probability of y=1 of neighbors of x
-            outputs[x] = avg(
-                [
-                    outputs[ex]
-                    for ex, label in test_predictions.items()
-                    if label == test_predictions[ex] and ex not in t_prime
-                ]
-            )
+            # find other members of x's cluster if they're already classified with sufficient s_avg
+            c_prime = [
+                ex
+                for ex in test_predictions
+                if test_predictions[ex] == test_predictions[x]
+                and (ex not in t_prime or ex in outputs)
+            ]
+            # choose the average probability of y=1 of members in x's cluster
+            assert len(c_prime) > 0
+            outputs[x] = sum(outputs[ex] for ex in c_prime) / len(c_prime)
+        outputs = [outputs[x] for x in test]
+        return [round(x) for x in outputs]
 
-        return [1 if outputs[x] > 0.5 else 0 for x in test]
+
+def prediction(model: Union[LogisticRegression, SVC], x: Example, pos_label=1):
+    pos_idx = list(model.classes_).index(pos_label)
+    return model.predict_proba([x])[0][pos_idx]
 
 
-def avg(values: Collection) -> float:
+def avg(values: Sized) -> float:
+    assert len(values) > 0
     return sum(values) / len(values)
 
 
@@ -121,7 +133,7 @@ def s(gm: Graph, gt: Graph, x: Example) -> float:
     gt_neighbors = set(gt.neighbors(x))
     intersect = len(gm_neighbors & gt_neighbors)
     union = len(gm_neighbors | gt_neighbors)
-    assert union != 0
+    assert union > 0
     return intersect / union
 
 
@@ -145,23 +157,18 @@ def generate_neighborhood(
     gt.add_nodes_from(data)
 
     assert len(data) == len(cluster_predictions)
-    for i, u in enumerate(data):
-        print(f"i: {i}")
-
-        for j, v in enumerate(data):
+    for i in range(len(data)):
+        if i % 50 == 0:
+            print(f"i: {i}")
+        for j in range(i, len(data)):
+            u, v = data[i], data[j]
             # print(f"i:{i}, j:{j}")
-            # if u == v:
-            #     continue
-            m1 = model_predictions[i]
-            m2 = model_predictions[j]
-            c1 = cluster_predictions[i]
-            c2 = cluster_predictions[j]
             # if the examples have the same predicted output from the model on the test set, add a connecting edge in gm
-            if m1 == m2:
+            if model_predictions[i] == model_predictions[j]:
                 gm.add_edge(u, v)
 
             # if the examples are members of the same cluster on the test set, add a connecting edge in gt
-            if c1 == c2:
+            if cluster_predictions[i] == cluster_predictions[j]:
                 gt.add_edge(u, v)
     return gm, gt
 
@@ -180,3 +187,7 @@ def purity(y: List[float], y_hat: List[float]) -> float:
     matrix = metrics.cluster.contingency_matrix(labels_true=y, labels_pred=y_hat)
     # return purity
     return np.sum(np.amax(matrix, axis=0)) / np.sum(matrix)
+
+
+def labels(data: List[Example]):
+    return [x.label for x in data]

@@ -11,9 +11,6 @@ acl_folder = join(data_folder, "processed_acl")
 task_a_lab_folder = join(data_folder, "task_a_lab")
 task_b_lab_folder = join(data_folder, "task_b_lab")
 
-data_task_a_folder = join(data_folder, "data_task_a")
-data_task_b_folder = join(data_folder, "data_task_b")
-
 newsgroup_folder = join(data_folder, "20news-bydate/workingData")
 
 # ---------------------------------------------- #
