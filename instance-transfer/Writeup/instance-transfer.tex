@@ -81,15 +81,15 @@
         defined the entire sample space under which TrAdaBoost will operate.
 
         The train data for the algorithm is defined as two sets, $T_D$ and $T_S$. $T_D = \{(x^d_i, f(x^d_i)\}$ where $x^d_i \in X_D$ and
-        $(i = 1, \dots, m)$. $T_S = \{(x^s_i, f(x^s_i)\}$ where $x^s_i \in X_S$ and $(i = 1, \dots, n)$. Here $m$ and $n$ are the sizes of
+        $(i = 1, \dots, n)$. $T_S = \{(x^s_i, f(x^s_i)\}$ where $x^s_i \in X_S$ and $(i = 1, \dots, m)$. Here $n$ and $m$ are the sizes of
         two sets. Here $f(x)$ defines the function mapping the example from the given sample space to the output space. Together these sets
         form the training data. \autocite{dai_yang_xue_yu_2007}
 
         \begin{equation}
           x_i =
           \begin{cases}
-            x_i^d        & i = 1, \dots, m \\
-            x_i^s        & i = m + 1, \dots, n+m
+            x_i^d        & i = 1, \dots, n \\
+            x_i^s        & i = n + 1, \dots, n+m
           \end{cases}
         \end{equation}
 
