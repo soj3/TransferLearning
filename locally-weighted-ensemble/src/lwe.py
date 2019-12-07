@@ -47,31 +47,35 @@ def lwe(
     cluster_purities = [
         purity([ex.label for ex in data], cluster.fit_predict(data)) for data in train
     ]
+    print(f"Data Clustered with average purity {avg(cluster_purities)}")
     # if cluster purity is poor, then return average of all the predictions
     if avg(cluster_purities) < 0.5:
-        weights = {model: 1 / len(models) for model in models}
         # return the weighted probability of label = 1 for every x in T
+        weight = 1 / len(models)
         return [
             1
-            if sum(
-                weights[model] * model.predict_proba([x])[-1][-1] for model in models
-            )
-            > 0.5
+            if sum(weight * model.predict_proba([x])[-1][-1] for model in models) > 0.5
             else 0
             for x in test
         ]
     else:
         cluster = Cluster(n_clusters=clusters)
-        preds = cluster.fit_predict(test)
+        cluster_preds = cluster.fit_predict(test)
         neighborhoods = [
-            generate_neighborhood(data=test, model=model, cluster_predictions=preds)
+            generate_neighborhood(
+                data=test,
+                model_predictions=model.predict(test),
+                cluster_predictions=cluster_preds,
+            )
             for model in models
         ]
 
         t_prime = set()
         outputs = {}
         for x in test:
-            local_weights = {model: s(gm, gt, x) for model, gm, gt in neighborhoods}
+            local_weights = {
+                models[i]: s(g[0], g[1], x) for i, g in enumerate(neighborhoods)
+            }
             # average (sum/len) s(x) >= delta
             if avg(local_weights.values()) >= threshold:
                 outputs[x] = sum(
@@ -83,7 +87,7 @@ def lwe(
             else:
                 t_prime.add(x)
 
-        test_predictions = {x: pred for x, pred in zip(test, preds)}
+        test_predictions = {x: pred for x, pred in zip(test, cluster_preds)}
         for x in t_prime:
             # choose the average probability of y=1 of neighbors of x
             outputs[x] = avg(
@@ -122,9 +126,7 @@ def s(gm: Graph, gt: Graph, x: Example) -> float:
 
 
 def generate_neighborhood(
-    data: List[Example],
-    model: Union[LogisticRegression, SVC],
-    cluster_predictions: List,
+    data: List[Example], model_predictions: List[int], cluster_predictions: List[int]
 ) -> Tuple[Graph, Graph]:
     """
     Implementation necessary for the proposed weight caculation in eq. 5 of Gao et. al
@@ -144,11 +146,14 @@ def generate_neighborhood(
 
     assert len(data) == len(cluster_predictions)
     for i, u in enumerate(data):
+        print(f"i: {i}")
+
         for j, v in enumerate(data):
+            # print(f"i:{i}, j:{j}")
             # if u == v:
             #     continue
-            m1 = model.predict([u])[-1]
-            m2 = model.predict([v])[-1]
+            m1 = model_predictions[i]
+            m2 = model_predictions[j]
             c1 = cluster_predictions[i]
             c2 = cluster_predictions[j]
             # if the examples have the same predicted output from the model on the test set, add a connecting edge in gm
@@ -158,7 +163,7 @@ def generate_neighborhood(
             # if the examples are members of the same cluster on the test set, add a connecting edge in gt
             if c1 == c2:
                 gt.add_edge(u, v)
-    return model, gm, gt
+    return gm, gt
 
 
 def purity(y: List[float], y_hat: List[float]) -> float:

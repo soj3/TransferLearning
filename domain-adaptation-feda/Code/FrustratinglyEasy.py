@@ -12,8 +12,8 @@ np.set_printoptions(threshold=50)
 test_size = 100
 n = 5
 # For the amazon dataset, what are the source and target domains
-src = 'dvd'
-tgt = 'kitchen'
+src = 'books'
+tgt = 'dvd'
 
 # a simple similarity metric implemented simply. jaccard similarity is just the
 # size of the intersection divided by the size of the union
@@ -181,6 +181,20 @@ def all_learner_log_reg(src_domain, src_domain_labels, eval_features, train_feat
     return score
 
 
+def src_learner_log_reg(src_domain, src_domain_labels, eval_features, train_features, eval_labels, train_labels):
+
+    all_learner = LogisticRegression(solver='liblinear', max_iter= 200)
+    all_learner.fit(src_domain, src_domain_labels)
+    score = all_learner.score(eval_features, eval_labels)
+    return score
+
+
+def src_learner_svm(src_domain, src_domain_labels, eval_features, train_features, eval_labels, train_labels):
+    all_learner = LinearSVC(C=1, max_iter=2000)
+    all_learner.fit(src_domain, src_domain_labels)
+    score = all_learner.score(eval_features, eval_labels)
+    return score
+
 def feda_log_reg(src_domain, src_domain_labels, eval_features, train_features, eval_labels, train_labels):
 
     all_labels = np.concatenate((src_domain_labels, train_labels))
@@ -204,7 +218,7 @@ def feda_log_reg_mod(src_domain,src_domain_labels, eval_features, train_features
     aug_features_train = np.concatenate((train_features, np.zeros(train_features.shape), train_features),axis=1)
     aug_features_eval = np.concatenate((eval_features, np.zeros(eval_features.shape), np.zeros(eval_features.shape), eval_features),axis=1)
     aug_features = np.concatenate((aug_features_src1, aug_features_train))
-    feda_learner = LogisticRegression(C=1, solver='liblinear', max_iter= 200) # feda is agnostic to the underlying
+    feda_learner = LogisticRegression(solver='liblinear', max_iter= 200) # feda is agnostic to the underlying
     # learning algorithm.
     feda_learner.fit(aug_features, all_labels, sample_weight=all_weights)
     score = feda_learner.score(aug_features_eval, eval_labels)
@@ -243,29 +257,6 @@ def training_samples(tgt_features, tgt_labels, test_size):
 # src_features, tgt_features = prepreprocess_data(src_features, tgt_features, 10000)
 
 
-src_features, src_labels, tgt_features, tgt_labels = load_data_newsgroup()
-
-src_features, tgt_features = prepreprocess_data(src_features, tgt_features, 10000)
-
-print('newsgroup using {} labeled target examples'.format(test_size))
-f_svm = []
-t_svm = []
-a_svm = []
-
-for i in range(0, n):
-    eval_features, train_features, eval_labels, train_labels = training_samples(tgt_features, tgt_labels,test_size=test_size)
-    f_svm.append(feda_svm(src_features, src_labels, eval_features, train_features, eval_labels, train_labels))
-    t_svm.append(tgt_learner_svm(src_features, src_labels, eval_features, train_features, eval_labels, train_labels))
-    a_svm.append(all_learner_svm(src_features, src_labels, eval_features, train_features, eval_labels, train_labels))
-print('SVM FEDA:', f_svm)
-print(np.average(f_svm))
-print(np.std(f_svm))
-print('SVM All:', a_svm)
-print(np.average(a_svm))
-print(np.std(a_svm))
-print('SVM Target:', t_svm)
-print(np.average(t_svm))
-print(np.std(t_svm))
 
 src_features, src_labels, tgt_features, tgt_labels = load_data_sent(src, tgt)
 
@@ -278,6 +269,9 @@ t_log_reg = []
 t_svm = []
 a_log_reg = []
 a_svm = []
+s_svm = []
+s_log_reg = []
+
 for i in range(n):
     eval_features, train_features, eval_labels, train_labels = training_samples(tgt_features, tgt_labels, test_size)
     f_log_reg.append(feda_log_reg(src_features, src_labels, eval_features, train_features, eval_labels, train_labels))
@@ -286,6 +280,8 @@ for i in range(n):
     f_svm.append(feda_svm(src_features, src_labels, eval_features, train_features, eval_labels, train_labels))
     t_svm.append(tgt_learner_svm(src_features, src_labels, eval_features, train_features, eval_labels, train_labels))
     a_svm.append(all_learner_svm(src_features, src_labels, eval_features, train_features, eval_labels, train_labels))
+    s_svm.append(src_learner_svm(src_features, src_labels, eval_features, train_features, eval_labels, train_labels))
+    s_log_reg.append(src_learner_log_reg(src_features, src_labels, eval_features, train_features, eval_labels, train_labels))
 
 
 print('Log Reg FEDA:', f_log_reg)
@@ -297,12 +293,23 @@ print(np.std(a_log_reg))
 print('Log Reg Target:', t_log_reg)
 print(np.average(t_log_reg))
 print(np.std(t_log_reg))
+print('Log Reg Source:', s_log_reg)
+print(np.average(s_log_reg))
+print(np.std(s_log_reg))
 print('SVM FEDA:', f_svm)
 print(np.average(f_svm))
 print('SVM All:', a_svm)
 print(np.average(a_svm))
 print('Target SVM:', t_svm)
 print(np.average(t_svm))
+print('Source SVM:', s_svm)
+print(np.average(s_svm))
+
+print('----------------')
+
+print('----------------')
+
+print('----------------')
 
 
 src_features, src_labels, tgt_features, tgt_labels = load_data_spam()
@@ -315,7 +322,7 @@ t_svm = []
 a_svm = []
 
 for i in range(0, n):
-    eval_features, train_features, eval_labels, train_labels = training_samples(tgt_features, tgt_labels,test_size=test_size)
+    eval_features, train_features, eval_labels, train_labels = training_samples(tgt_features, tgt_labels,test_size)
     f_svm.append(feda_svm(src_features, src_labels, eval_features, train_features, eval_labels, train_labels))
     t_svm.append(tgt_learner_svm(src_features, src_labels, eval_features, train_features, eval_labels, train_labels))
     a_svm.append(all_learner_svm(src_features, src_labels, eval_features, train_features, eval_labels, train_labels))
@@ -330,4 +337,32 @@ print(np.average(t_svm))
 print(np.std(t_svm))
 
 
+print('----------------')
 
+print('----------------')
+
+print('----------------')
+
+src_features, src_labels, tgt_features, tgt_labels = load_data_newsgroup()
+
+src_features, tgt_features = prepreprocess_data(src_features, tgt_features, 10000)
+
+print('newsgroup using {} labeled target examples'.format(test_size))
+f_svm = []
+t_svm = []
+a_svm = []
+
+for i in range(0, n):
+    eval_features, train_features, eval_labels, train_labels = training_samples(tgt_features, tgt_labels,test_size)
+    f_svm.append(feda_svm(src_features, src_labels, eval_features, train_features, eval_labels, train_labels))
+    t_svm.append(tgt_learner_svm(src_features, src_labels, eval_features, train_features, eval_labels, train_labels))
+    a_svm.append(all_learner_svm(src_features, src_labels, eval_features, train_features, eval_labels, train_labels))
+print('SVM FEDA:', f_svm)
+print(np.average(f_svm))
+print(np.std(f_svm))
+print('SVM All:', a_svm)
+print(np.average(a_svm))
+print(np.std(a_svm))
+print('SVM Target:', t_svm)
+print(np.average(t_svm))
+print(np.std(t_svm))
