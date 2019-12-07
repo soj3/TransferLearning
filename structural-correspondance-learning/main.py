@@ -10,8 +10,8 @@ import numpy as np
 
 LAMBDA = 1e-1
 MU = 1e-1
-NUM_PIVOTS = 26
-SVD_DIMENSION = 25
+NUM_PIVOTS = 125
+SVD_DIMENSION = 85
 MIN_PIVOT_APPEARANCE = 10
 NUM_FOLDS = 5
 
@@ -135,17 +135,17 @@ def scl(source, target):
     avg_corrected_target_roc = np.average(corrected_target_rocs)
 
     print("Average baseline source acc is " + str(round(avg_baseline_source_acc,3)) + " " + u'\xb1' + " " +
-          str(round(std_baseline_source_acc, 2)) + ", ROC is " + avg_baseline_source_roc)
+          str(round(std_baseline_source_acc, 2)) + ", ROC is " + str(avg_baseline_source_roc))
     print("Average baseline target acc is " + str(round(avg_baseline_target_acc,3)) + " " + u'\xb1' + " " +
-          str(round(std_baseline_target_acc, 2)) + ", ROC is " + avg_baseline_target_roc)
+          str(round(std_baseline_target_acc, 2)) + ", ROC is " + str(avg_baseline_target_roc))
     print("Average adapted source acc is " + str(round(avg_adapted_source_acc,3)) + " " + u'\xb1' + " " +
-          str(round(std_adapted_source_acc, 2)) + ", ROC is " + avg_adapted_source_roc)
+          str(round(std_adapted_source_acc, 2)) + ", ROC is " + str(avg_adapted_source_roc))
     print("Average adapted target acc is " + str(round(avg_adapted_target_acc,3)) + " " + u'\xb1' + " " +
-          str(round(std_adapted_target_acc, 2)) + ", ROC is " + avg_adapted_target_roc)
+          str(round(std_adapted_target_acc, 2)) + ", ROC is " + str(avg_adapted_target_roc))
     print("Average corrected source acc is " + str(round(avg_corrected_source_acc, 3)) + " " + u'\xb1' + " " +
-          str(round(std_corrected_source_acc, 2)) + ", ROC is " + avg_corrected_source_roc)
+          str(round(std_corrected_source_acc, 2)) + ", ROC is " + str(avg_corrected_source_roc))
     print("Average corrected target acc is " + str(round(avg_corrected_target_acc, 3)) + " " + u'\xb1' + " " +
-          str(round(std_corrected_target_acc, 2)) + ", ROC is " + avg_corrected_target_roc)
+          str(round(std_corrected_target_acc, 2)) + ", ROC is " + str(avg_corrected_target_roc))
 
     print("Calculating A-distance...")
 
@@ -161,10 +161,10 @@ def main():
     # args = vars(ap.parse_args())
 
     #scl("books", "dvd")
-    scl("books", "kitchen")
+    #scl("books", "kitchen")
     # scl("books", "electronics")
     # scl("dvd", "electronics")
-    # scl("dvd", "kitchen")
+    scl("dvd", "kitchen")
     # scl("electronics", "kitchen")
     # split source and target datasets into training and testing data
     # baseline classifier
